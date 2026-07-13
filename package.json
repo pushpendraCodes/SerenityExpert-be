@@ -2,11 +2,12 @@
   "name": "expert-consultant-backend",
   "version": "1.0.0",
   "description": "Expert Consultation Platform Backend",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "nodemon src/server.js",
+    "start": "node dist/server.js",
+    "start:dev": "tsx watch src/server.ts",
     "clean": "rimraf dist",
     "seed": "tsx src/scripts/seed.ts",
     "seed:fresh": "tsx src/scripts/seed.ts --fresh"
