@@ -1,0 +1,163 @@
+import Call from "../models/Call.js";
+import Expert from "../models/Expert.js";
+import Payout from "../models/Payout.js";
+import Transaction from "../models/Transaction.js";
+import { PayoutStatus, CallStatus } from "../types/index.js";
+import { DEFAULT_COMMISSION_PERCENT } from "../utils/constants.js";
+import { paginate } from "../utils/pagination.js";
+import { createNotification } from "./notification.service.js";
+import { NotificationType } from "../types/index.js";
+import type { PaginationQuery } from "../types/index.js";
+
+export async function calculateExpertEarnings(
+  expertId: string,
+  periodStart: Date,
+  periodEnd: Date
+): Promise<{ grossAmount: number; commission: number; netAmount: number; callCount: number }> {
+  const expert = await Expert.findById(expertId);
+  if (!expert) return { grossAmount: 0, commission: 0, netAmount: 0, callCount: 0 };
+
+  const calls = await Call.find({
+    expertId,
+    status: CallStatus.COMPLETED,
+    endedAt: { $gte: periodStart, $lte: periodEnd },
+  });
+
+  const grossAmount = calls.reduce((sum, call) => sum + call.totalCost, 0);
+  const commission = (grossAmount * expert.commissionPercent) / 100;
+  const netAmount = grossAmount - commission;
+
+  return { grossAmount, commission, netAmount, callCount: calls.length };
+}
+
+export async function createPayoutRequest(expertId: string): Promise<typeof Payout.prototype> {
+  const expert = await Expert.findById(expertId);
+  if (!expert) throw new Error("Expert not found");
+
+  const pendingPayout = await Payout.findOne({
+    expertId,
+    status: { $in: [PayoutStatus.PENDING, PayoutStatus.PROCESSING] },
+  });
+  if (pendingPayout) {
+    throw new Error("A payout request is already pending");
+  }
+
+  const periodEnd = new Date();
+  const lastPayout = await Payout.findOne({ expertId, status: PayoutStatus.COMPLETED }).sort({ periodEnd: -1 });
+  const periodStart = lastPayout?.periodEnd || new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const { grossAmount, commission, netAmount } = await calculateExpertEarnings(expertId, periodStart, periodEnd);
+
+  if (netAmount <= 0) {
+    throw new Error("No earnings available for payout");
+  }
+
+  return Payout.create({
+    expertId,
+    amount: grossAmount,
+    commission,
+    netAmount,
+    periodStart,
+    periodEnd,
+    status: PayoutStatus.PENDING,
+  });
+}
+
+export async function processWeeklyPayouts(): Promise<number> {
+  const periodEnd = new Date();
+  const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const experts = await Expert.find({ isApproved: true, totalEarnings: { $gt: 0 } });
+  let processed = 0;
+
+  for (const expert of experts) {
+    const existing = await Payout.findOne({
+      expertId: expert._id,
+      periodStart: { $gte: periodStart },
+      periodEnd: { $lte: periodEnd },
+    });
+    if (existing) continue;
+
+    const { grossAmount, commission, netAmount, callCount } = await calculateExpertEarnings(
+      expert._id.toString(),
+      periodStart,
+      periodEnd
+    );
+
+    if (netAmount <= 0 || callCount === 0) continue;
+
+    const payout = await Payout.create({
+      expertId: expert._id,
+      amount: grossAmount,
+      commission,
+      netAmount,
+      periodStart,
+      periodEnd,
+      status: PayoutStatus.PROCESSING,
+    });
+
+    // Razorpay Payouts API integration placeholder
+    // In production: call Razorpay X Payouts with expert.bankDetails
+    payout.status = PayoutStatus.COMPLETED;
+    payout.processedAt = new Date();
+    await payout.save();
+
+    await createNotification(
+      expert.userId.toString(),
+      "Payout processed",
+      `Your payout of ₹${netAmount.toFixed(2)} has been processed`,
+      NotificationType.PAYMENT,
+      { payoutId: payout._id.toString() }
+    );
+
+    processed++;
+  }
+
+  return processed;
+}
+
+export async function getExpertPayouts(expertId: string, query: PaginationQuery) {
+  return paginate({
+    model: Payout,
+    filter: { expertId },
+    query,
+    sort: { createdAt: -1 },
+  });
+}
+
+export async function getAllPayouts(query: PaginationQuery) {
+  return paginate({
+    model: Payout,
+    filter: {},
+    query,
+    populate: { path: "expertId", populate: { path: "userId", select: "name phone email" } },
+    sort: { createdAt: -1 },
+  });
+}
+
+export async function getExpertEarningsSummary(expertId: string) {
+  const expert = await Expert.findById(expertId);
+  if (!expert) return null;
+
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weeklyEarnings = await calculateExpertEarnings(expertId, weekAgo, new Date());
+
+  const recentPayouts = await Payout.find({ expertId })
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+  const recentCalls = await Call.find({ expertId, status: CallStatus.COMPLETED })
+    .sort({ endedAt: -1 })
+    .limit(10)
+    .populate("userId", "name avatar");
+
+  return {
+    totalEarnings: expert.totalEarnings,
+    totalCalls: expert.totalCalls,
+    totalMinutes: expert.totalMinutes,
+    commissionPercent: expert.commissionPercent,
+    weeklyEarnings,
+    recentPayouts,
+    recentCalls,
+  };
+}
