@@ -2,7 +2,7 @@
   "name": "expert-consultant-backend",
   "version": "1.0.0",
   "description": "Expert Consultation Platform Backend",
-  "main": "dist/server.js",
+  "main": "src/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
