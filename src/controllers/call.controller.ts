@@ -71,3 +71,15 @@ export const rateCall = asyncHandler(async (req: Request, res: Response) => {
   );
   return sendSuccess(res, call, "Call rated successfully");
 });
+
+export const uploadRecording = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    return sendSuccess(res, null, "No recording file");
+  }
+  const call = await callService.saveCallRecording(
+    getParam(req, "id"),
+    req.user!._id.toString(),
+    req.file.buffer
+  );
+  return sendSuccess(res, call, "Recording saved");
+});

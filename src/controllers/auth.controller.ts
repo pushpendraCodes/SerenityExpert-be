@@ -1,14 +1,16 @@
 import { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import Expert from "../models/Expert.js";
+import { findExpertByMobile } from "../services/expert.service.js";
 import { AuthError } from "../utils/AppError.js";
 import { sendSuccess, sendCreated } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { normalizePhone } from "../utils/phone.js";
 
 export const sendExpertOtp = asyncHandler(async (req: Request, res: Response) => {
   const { phone } = req.body;
-  await authService.sendExpertOtp(phone);
-  return sendSuccess(res, null, "OTP sent successfully");
+  const otp = await authService.sendExpertOtp(phone);
+  const isDev = process.env.NODE_ENV !== "production";
+  return sendSuccess(res, isDev ? { otp } : null, "OTP sent successfully");
 });
 
 export const verifyExpertOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -23,8 +25,8 @@ export const verifyExpertOtp = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
-  const { phone } = req.body;
-  const expert = await Expert.findOne({ mobile: phone });
+  const phone = normalizePhone(req.body.phone);
+  const expert = await findExpertByMobile(phone);
   if (expert) {
     throw new AuthError("This mobile number is registered as an expert. Please use expert login.");
   }

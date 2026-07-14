@@ -21,3 +21,17 @@ export const chatImageUpload = multer({
   limits: { fileSize: MAX_CHAT_IMAGE_SIZE },
   fileFilter: imageFilter,
 }).single("image");
+
+const recordingFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const ok = ["audio/webm", "audio/ogg", "audio/mpeg", "audio/mp4", "video/webm", "application/octet-stream"].includes(
+    file.mimetype
+  );
+  if (ok) cb(null, true);
+  else cb(new ValidationError("Only audio/video recording files are allowed"));
+};
+
+export const callRecordingUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: recordingFilter,
+}).single("recording");

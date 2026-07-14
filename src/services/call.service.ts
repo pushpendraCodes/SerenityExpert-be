@@ -11,7 +11,8 @@ import {
 import { buildCallTokens, generateChannelName } from "./agora.service.js";
 import { cacheSet, cacheGet, cacheDel, CacheKeys } from "./cache.service.js";
 import { emitToUser } from "../config/socket.js";
-import { CallStatus, ExpertStatus } from "../types/index.js";
+import { createNotification } from "./notification.service.js";
+import { CallStatus, ExpertStatus, NotificationType } from "../types/index.js";
 import {
   NotFoundError,
   ForbiddenError,
@@ -20,6 +21,7 @@ import {
 } from "../utils/AppError.js";
 import { BILLING_INTERVAL_MS, LOW_BALANCE_WARNING_MINUTES } from "../utils/constants.js";
 import type { ICall } from "../models/Call.js";
+import { uploadRecording } from "./cloudinary.service.js";
 
 interface ActiveCallState {
   callId: string;
@@ -79,11 +81,30 @@ export async function initiateCall(userId: string, expertId: string): Promise<{
 
   const tokens = buildCallTokens(channelName, userId, expertUser._id.toString());
 
-  emitToUser(expertUser._id.toString(), "call:incoming", {
+  const caller = await User.findById(userId);
+  const incomingPayload = {
     callId: call._id.toString(),
-    callerName: (await User.findById(userId))?.name || "User",
-    callerAvatar: (await User.findById(userId))?.avatar || "",
-  });
+    callerName: caller?.name || "User",
+    callerAvatar: caller?.avatar || "",
+    pricePerMinute: expert.pricePerMinute,
+  };
+
+  emitToUser(expertUser._id.toString(), "call:incoming", incomingPayload);
+
+  // Push + in-app notification when expert is offline / tab closed
+  await createNotification(
+    expertUser._id.toString(),
+    "Incoming consultation call",
+    `${incomingPayload.callerName} is calling you`,
+    NotificationType.CALL,
+    {
+      callId: call._id.toString(),
+      type: "incoming_call",
+      callerName: incomingPayload.callerName,
+      callerAvatar: incomingPayload.callerAvatar || "",
+      pricePerMinute: String(incomingPayload.pricePerMinute),
+    }
+  );
 
   return {
     call,
@@ -182,6 +203,12 @@ function startBillingTimer(callId: string): void {
         cost: state.totalCost,
         balance,
       });
+      emitToUser(state.expertUserId, "call:timer", {
+        callId,
+        elapsed: state.elapsedSeconds,
+        cost: state.totalCost,
+        balance,
+      });
 
       if (minsLeft <= LOW_BALANCE_WARNING_MINUTES && minsLeft > 0) {
         emitToUser(state.userId, "call:low-balance", {
@@ -250,37 +277,46 @@ export async function endCall(
       expert.status = ExpertStatus.ONLINE;
       await expert.save();
     }
+    call.status = CallStatus.COMPLETED;
   } else if (call.status === CallStatus.RINGING) {
     const expert = await Expert.findById(call.expertId);
     if (expert) {
       expert.status = ExpertStatus.ONLINE;
       await expert.save();
     }
+    call.status = reason === "expert_ended" || reason === "user_ended" ? CallStatus.MISSED : CallStatus.MISSED;
     if (reason === "completed") reason = "user_ended";
+  } else {
+    call.status = CallStatus.COMPLETED;
+    const expert = await Expert.findById(call.expertId);
+    if (expert && expert.status === ExpertStatus.BUSY) {
+      expert.status = ExpertStatus.ONLINE;
+      await expert.save();
+    }
   }
 
-  call.status = CallStatus.COMPLETED;
   call.endedAt = new Date();
   call.durationSeconds = durationSeconds;
   call.totalCost = totalCost;
   call.endReason = reason;
   await call.save();
 
-  const expert = await Expert.findById(call.expertId);
-  const expertUserId = expert ? (await User.findById(expert.userId))?.id : null;
+  const expertDoc = await Expert.findById(call.expertId);
+  const expertUserId = expertDoc?.userId?.toString() || null;
 
-  emitToUser(call.userId.toString(), "call:ended", {
+  const endedPayload = {
     callId,
     duration: durationSeconds,
     cost: totalCost,
-  });
+    status: call.status,
+    recordingUrl: call.recordingUrl,
+  };
+
+  emitToUser(call.userId.toString(), "call:ended", endedPayload);
 
   if (expertUserId) {
-    emitToUser(expertUserId, "call:ended", {
-      callId,
-      duration: durationSeconds,
-      cost: totalCost,
-    });
+    emitToUser(expertUserId, "call:ended", endedPayload);
+    emitToUser(expertUserId, "call:cancelled", { callId, reason: call.status });
   }
 
   return call;
@@ -335,6 +371,18 @@ export async function timeoutRingingCalls(): Promise<number> {
     if (expert) {
       expert.status = ExpertStatus.ONLINE;
       await expert.save();
+      const expertUserId = expert.userId.toString();
+      emitToUser(expertUserId, "call:cancelled", {
+        callId: call._id.toString(),
+        reason: "missed",
+      });
+      await createNotification(
+        expertUserId,
+        "Missed consultation",
+        "A user tried to call you but the call timed out",
+        NotificationType.CALL,
+        { callId: call._id.toString(), type: "missed_call" }
+      );
     }
 
     emitToUser(call.userId.toString(), "call:rejected", {
@@ -344,4 +392,37 @@ export async function timeoutRingingCalls(): Promise<number> {
   }
 
   return ringingCalls.length;
+}
+
+export async function saveCallRecording(
+  callId: string,
+  userId: string,
+  buffer: Buffer
+): Promise<ICall> {
+  const call = await Call.findById(callId);
+  if (!call) throw new NotFoundError("Call");
+
+  const expert = await Expert.findOne({ userId });
+  const isCaller = call.userId.toString() === userId;
+  const isExpert = expert && call.expertId.toString() === expert._id.toString();
+  if (!isCaller && !isExpert) throw new ForbiddenError();
+
+  if (call.recordingUrl) return call;
+
+  const uploaded = await uploadRecording(buffer, callId);
+  call.recordingUrl = uploaded.url;
+  await call.save();
+
+  emitToUser(call.userId.toString(), "call:recording-ready", {
+    callId,
+    recordingUrl: uploaded.url,
+  });
+  if (expert) {
+    emitToUser(expert.userId.toString(), "call:recording-ready", {
+      callId,
+      recordingUrl: uploaded.url,
+    });
+  }
+
+  return call;
 }

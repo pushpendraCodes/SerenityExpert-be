@@ -26,16 +26,19 @@ export async function createNotification(
     title,
     body,
     type,
+    data: data || {},
   });
 
   const user = await User.findById(userId).select("fcmTokens");
   if (user?.fcmTokens?.length) {
-    await sendPushNotification(
-      user.fcmTokens,
-      title,
-      body,
-      { type, notificationId: notification._id.toString() }
-    );
+    const pushData: Record<string, string> = {
+      type,
+      notificationId: notification._id.toString(),
+    };
+    for (const [key, value] of Object.entries(data || {})) {
+      if (value !== undefined && value !== null) pushData[key] = String(value);
+    }
+    await sendPushNotification(user.fcmTokens, title, body, pushData);
   }
 }
 

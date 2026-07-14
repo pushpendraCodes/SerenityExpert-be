@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import User from "../models/User.js";
 
 let firebaseInitialized = false;
 
@@ -53,7 +54,7 @@ export const sendPushNotification = async (
     const response = await admin.messaging().sendEachForMulticast(message);
     console.log(`📲 Push sent: ${response.successCount}/${tokens.length} successful`);
 
-    // Remove invalid tokens
+    // Remove invalid/expired tokens so future pushes don't keep failing
     if (response.failureCount > 0) {
       const failedTokens: string[] = [];
       response.responses.forEach((resp, idx) => {
@@ -61,8 +62,13 @@ export const sendPushNotification = async (
           failedTokens.push(tokens[idx]);
         }
       });
-      // TODO: Remove failed tokens from user records
-      console.warn(`⚠️ ${failedTokens.length} FCM tokens failed`);
+      if (failedTokens.length) {
+        await User.updateMany(
+          { fcmTokens: { $in: failedTokens } },
+          { $pull: { fcmTokens: { $in: failedTokens } } }
+        );
+      }
+      console.warn(`⚠️ ${failedTokens.length} FCM tokens failed and were removed`);
     }
   } catch (err) {
     console.error("❌ Push notification failed:", err);

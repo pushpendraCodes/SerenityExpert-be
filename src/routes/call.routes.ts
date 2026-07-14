@@ -7,6 +7,7 @@ import {
   rateCallSchema,
   callHistorySchema,
 } from "../validators/call.validator.js";
+import { callRecordingUpload } from "../middlewares/upload.js";
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.post("/:id/accept", callController.acceptCall);
 router.post("/:id/reject", callController.rejectCall);
 router.post("/:id/end", callController.endCall);
 router.post("/:id/rate", validate(rateCallSchema), callController.rateCall);
+router.post("/:id/recording", callRecordingUpload, callController.uploadRecording);
 
 export default router;

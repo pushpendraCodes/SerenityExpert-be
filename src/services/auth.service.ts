@@ -1,9 +1,9 @@
 import User from "../models/User.js";
-import Expert from "../models/Expert.js";
 import { verifyOtp } from "./otp.service.js";
-import { assertExpertCanLogin } from "./expert.service.js";
+import { assertExpertCanLogin, findExpertByMobile } from "./expert.service.js";
 import { generateTokenPair, verifyRefreshToken } from "../utils/token.js";
 import { generateDummyAvatar, generateDummyUsername } from "../utils/constants.js";
+import { normalizePhone, phoneLookupVariants } from "../utils/phone.js";
 import { UserRole } from "../types/index.js";
 import { AuthError } from "../utils/AppError.js";
 import type { IUser } from "../models/User.js";
@@ -16,15 +16,17 @@ interface AuthResult {
   expert?: import("../models/Expert.js").IExpert;
 }
 
-export async function sendExpertOtp(mobile: string): Promise<void> {
-  await assertExpertCanLogin(mobile);
+export async function sendExpertOtp(mobile: string): Promise<string> {
+  const phone = normalizePhone(mobile);
+  await assertExpertCanLogin(phone);
   const { sendOtp } = await import("./otp.service.js");
-  await sendOtp(mobile);
+  return sendOtp(phone);
 }
 
 export async function loginExpertWithOtp(mobile: string, otp: string): Promise<AuthResult> {
-  const expert = await assertExpertCanLogin(mobile);
-  await verifyOtp(mobile, otp);
+  const phone = normalizePhone(mobile);
+  const expert = await assertExpertCanLogin(phone);
+  await verifyOtp(phone, otp);
 
   const user = await User.findById(expert.userId);
   if (!user || user.isBlocked) {
@@ -44,28 +46,30 @@ export async function loginExpertWithOtp(mobile: string, otp: string): Promise<A
 }
 
 export async function loginWithOtp(phone: string, otp: string): Promise<AuthResult> {
-  const expertAccount = await Expert.findOne({ mobile: phone });
+  const normalized = normalizePhone(phone);
+  const expertAccount = await findExpertByMobile(normalized);
   if (expertAccount) {
     throw new AuthError("This mobile number is registered as an expert. Please use expert login.");
   }
 
-  await verifyOtp(phone, otp);
+  await verifyOtp(normalized, otp);
 
-  let user = await User.findOne({ phone });
+  let user = await User.findOne({ phone: { $in: phoneLookupVariants(normalized) } });
   let isNewUser = false;
 
   if (!user) {
     isNewUser = true;
     user = await User.create({
-      phone,
+      phone: normalized,
       name: generateDummyUsername(),
-      avatar: generateDummyAvatar(phone),
+      avatar: generateDummyAvatar(normalized),
       isVerified: true,
       role: UserRole.USER,
     });
   } else {
     user.isVerified = true;
     user.lastLoginAt = new Date();
+    if (!user.phone.startsWith("+")) user.phone = normalized;
     await user.save();
   }
 

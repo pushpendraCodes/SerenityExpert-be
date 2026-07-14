@@ -9,6 +9,7 @@ import { paginate } from "../utils/pagination.js";
 import { ExpertStatus, UserRole } from "../types/index.js";
 import { generateDummyAvatar } from "../utils/constants.js";
 import { ConflictError, NotFoundError, ForbiddenError, AuthError } from "../utils/AppError.js";
+import { phoneLookupVariants, normalizePhone } from "../utils/phone.js";
 import type { PaginationQuery } from "../types/index.js";
 import type { IExpert } from "../models/Expert.js";
 import type { AvailabilitySlot } from "../types/index.js";
@@ -25,26 +26,27 @@ export async function createExpertByAdmin(data: {
   commissionPercent?: number;
   bankDetails?: IExpert["bankDetails"];
 }): Promise<IExpert> {
-  const existingExpert = await Expert.findOne({ mobile: data.mobile });
+  const normalizedMobile = normalizePhone(data.mobile);
+  const existingExpert = await Expert.findOne({ mobile: { $in: phoneLookupVariants(data.mobile) } });
   if (existingExpert) throw new ConflictError("Expert with this mobile number already exists");
 
-  const existingUser = await User.findOne({ phone: data.mobile });
+  const existingUser = await User.findOne({ phone: { $in: phoneLookupVariants(data.mobile) } });
   if (existingUser) throw new ConflictError("Mobile number already registered");
 
   const defaultPrice = data.pricePerMinute ?? await getDefaultPricePerMinute();
   const defaultCommission = data.commissionPercent ?? await getDefaultCommission();
 
   const user = await User.create({
-    phone: data.mobile,
+    phone: normalizedMobile,
     name: data.name,
-    avatar: generateDummyAvatar(data.mobile),
+    avatar: generateDummyAvatar(normalizedMobile),
     isVerified: false,
     role: UserRole.USER,
   });
 
   const expert = await Expert.create({
     userId: user._id,
-    mobile: data.mobile,
+    mobile: normalizedMobile,
     bio: data.bio || "",
     experience: data.experience || 0,
     categories: data.categories,
@@ -60,11 +62,11 @@ export async function createExpertByAdmin(data: {
 }
 
 export async function findExpertByMobile(mobile: string): Promise<IExpert | null> {
-  return Expert.findOne({ mobile });
+  return Expert.findOne({ mobile: { $in: phoneLookupVariants(mobile) } });
 }
 
 export async function assertExpertCanLogin(mobile: string): Promise<IExpert> {
-  const expert = await Expert.findOne({ mobile });
+  const expert = await findExpertByMobile(mobile);
   if (!expert) {
     throw new AuthError("No expert account found for this mobile number. Contact admin to register.");
   }

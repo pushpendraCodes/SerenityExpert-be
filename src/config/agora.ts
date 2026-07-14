@@ -22,7 +22,9 @@ export function generateAgoraToken(options: AgoraTokenOptions): string {
   const appCertificate = process.env.AGORA_APP_CERTIFICATE;
 
   if (!appId || !appCertificate) {
-    throw new Error("Agora App ID and Certificate are required");
+    // Allow local/dev calls without Agora — clients fall back to local mic + recording
+    console.warn("Agora credentials missing — returning empty token (local/dev mode)");
+    return "";
   }
 
   const agoraRole = role === "publisher" ? RtcRole.PUBLISHER : RtcRole.SUBSCRIBER;

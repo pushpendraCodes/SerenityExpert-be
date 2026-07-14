@@ -140,14 +140,33 @@ export interface ServerToClientEvents {
   "message:read": (data: { chatId: string; readBy: string }) => void;
   "typing:start": (data: { chatId: string; userId: string }) => void;
   "typing:stop": (data: { chatId: string; userId: string }) => void;
-  "call:incoming": (data: { callId: string; callerName: string; callerAvatar: string }) => void;
+  "call:incoming": (data: {
+    callId: string;
+    callerName: string;
+    callerAvatar: string;
+    pricePerMinute?: number;
+  }) => void;
   "call:accepted": (data: { callId: string; agoraToken: string; channelName: string }) => void;
   "call:rejected": (data: { callId: string; reason?: string }) => void;
-  "call:ended": (data: { callId: string; duration: number; cost: number }) => void;
+  "call:cancelled": (data: { callId: string; reason?: string }) => void;
+  "call:ended": (data: {
+    callId: string;
+    duration: number;
+    cost: number;
+    status?: string;
+    recordingUrl?: string;
+  }) => void;
   "call:timer": (data: { callId: string; elapsed: number; cost: number; balance: number }) => void;
   "call:low-balance": (data: { callId: string; balance: number; minutesRemaining: number }) => void;
+  "call:recording-ready": (data: { callId: string; recordingUrl: string }) => void;
   "expert:status-changed": (data: { expertId: string; status: ExpertStatus }) => void;
-  "notification:new": (data: { id: string; title: string; body: string; type: NotificationType }) => void;
+  "notification:new": (data: {
+    id: string;
+    title: string;
+    body: string;
+    type: NotificationType;
+    data?: Record<string, unknown>;
+  }) => void;
 }
 
 export interface ClientToServerEvents {
