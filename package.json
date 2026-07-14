@@ -2,11 +2,12 @@
   "name": "expert-consultant-backend",
   "version": "1.0.0",
   "description": "Expert Consultation Platform Backend",
-  "main": "src/server.ts",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "start:tsx": "node --import tsx src/server.ts",
     "start:watch": "tsx watch src/server.ts",
     "clean": "rimraf dist",
     "seed": "tsx src/scripts/seed.ts",
@@ -37,7 +38,8 @@
     "socket.io": "^4.8.0",
     "zod": "^3.25.67",
     "@google/generative-ai": "^0.24.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
@@ -49,7 +51,6 @@
     "@types/node": "^22.16.0",
     "@types/node-cron": "^3.0.11",
     "nodemon": "^3.1.0",
-    "rimraf": "^6.0.1",
-    "typescript": "^5.8.0"
+    "rimraf": "^6.0.1"
   }
 }
