@@ -15,7 +15,6 @@
     "declarationMap": false,
     "sourceMap": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
