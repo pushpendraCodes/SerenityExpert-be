@@ -15,8 +15,8 @@ export const getExpertById = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const getExpertReviews = asyncHandler(async (req: Request, res: Response) => {
-  const reviews = await expertService.getExpertReviews(getParam(req, "id"));
-  return sendSuccess(res, reviews);
+  const result = await expertService.getExpertReviews(getParam(req, "id"), req.query);
+  return sendPaginated(res, result);
 });
 
 export const getCategories = asyncHandler(async (_req: Request, res: Response) => {

@@ -123,25 +123,37 @@ async function getExpertProfile(expertId) {
         throw new AppError_js_1.NotFoundError("Expert");
     return expert;
 }
-async function getExpertReviews(expertId, limit = 10) {
+async function getExpertReviews(expertId, query = {}) {
     const expert = await Expert_js_1.default.findOne({ _id: expertId, isApproved: true });
     if (!expert)
         throw new AppError_js_1.NotFoundError("Expert");
-    const reviews = await Call_js_1.default.find({
-        expertId,
-        status: index_js_1.CallStatus.COMPLETED,
-        rating: { $exists: true, $ne: null },
-    })
-        .select("rating review createdAt")
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .lean();
-    return reviews.map((r) => ({
-        rating: r.rating,
-        review: r.review || "",
-        createdAt: r.createdAt,
-        authorName: "Anonymous User",
-    }));
+    const result = await (0, pagination_js_1.paginate)({
+        model: Call_js_1.default,
+        filter: {
+            expertId,
+            status: index_js_1.CallStatus.COMPLETED,
+            rating: { $exists: true, $ne: null },
+        },
+        query,
+        select: "rating review createdAt userId",
+        populate: { path: "userId", select: "name avatar" },
+        sort: { createdAt: -1 },
+    });
+    return {
+        ...result,
+        data: result.data.map((r) => {
+            const row = r;
+            const author = row.userId && typeof row.userId === "object" && row.userId.name
+                ? row.userId.name
+                : "Anonymous User";
+            return {
+                rating: row.rating || 0,
+                review: row.review || "",
+                createdAt: row.createdAt,
+                authorName: author,
+            };
+        }),
+    };
 }
 async function updateExpertProfile(userId, data) {
     const expert = await Expert_js_1.default.findOne({ userId });

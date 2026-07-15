@@ -47,8 +47,8 @@ exports.getExpertById = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => 
     return (0, response_js_1.sendSuccess)(res, expert);
 });
 exports.getExpertReviews = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const reviews = await expertService.getExpertReviews((0, params_js_1.getParam)(req, "id"));
-    return (0, response_js_1.sendSuccess)(res, reviews);
+    const result = await expertService.getExpertReviews((0, params_js_1.getParam)(req, "id"), req.query);
+    return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getCategories = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
     const categories = await expertService.getPublicCategories();
