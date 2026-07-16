@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import * as expertService from "../services/expert.service.js";
-import { sendSuccess, sendCreated, sendPaginated } from "../utils/response.js";
+import { sendSuccess, sendPaginated } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getParam } from "../utils/params.js";
 
@@ -47,11 +47,6 @@ export const getDashboard = asyncHandler(async (req: Request, res: Response) => 
 export const getEarnings = asyncHandler(async (req: Request, res: Response) => {
   const result = await expertService.getExpertEarnings(req.user!._id.toString(), req.query);
   return sendPaginated(res, result);
-});
-
-export const requestWithdraw = asyncHandler(async (req: Request, res: Response) => {
-  const payout = await expertService.requestWithdrawal(req.user!._id.toString());
-  return sendCreated(res, payout, "Withdrawal request submitted");
 });
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {

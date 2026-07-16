@@ -41,7 +41,12 @@ export const sendMessage = asyncHandler(async (req: Request, res: Response) => {
 
   let imageUrl: string | undefined;
   if (req.file) {
-    const uploaded = await uploadImage(req.file.buffer, "chat", getParam(req, "id"));
+    // Unique public_id so retention cleanup can delete each image independently
+    const uploaded = await uploadImage(
+      req.file.buffer,
+      "chat",
+      `${getParam(req, "id")}_${Date.now()}`
+    );
     imageUrl = uploaded.url;
   }
 

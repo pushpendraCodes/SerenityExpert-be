@@ -1,9 +1,7 @@
 import Call from "../models/Call.js";
 import Expert from "../models/Expert.js";
 import Payout from "../models/Payout.js";
-import Transaction from "../models/Transaction.js";
 import { PayoutStatus, CallStatus } from "../types/index.js";
-import { DEFAULT_COMMISSION_PERCENT } from "../utils/constants.js";
 import { paginate } from "../utils/pagination.js";
 import { createNotification } from "./notification.service.js";
 import { NotificationType } from "../types/index.js";
@@ -30,53 +28,39 @@ export async function calculateExpertEarnings(
   return { grossAmount, commission, netAmount, callCount: calls.length };
 }
 
-export async function createPayoutRequest(expertId: string): Promise<typeof Payout.prototype> {
-  const expert = await Expert.findById(expertId);
-  if (!expert) throw new Error("Expert not found");
-
-  const pendingPayout = await Payout.findOne({
-    expertId,
-    status: { $in: [PayoutStatus.PENDING, PayoutStatus.PROCESSING] },
-  });
-  if (pendingPayout) {
-    throw new Error("A payout request is already pending");
-  }
-
-  const periodEnd = new Date();
-  const lastPayout = await Payout.findOne({ expertId, status: PayoutStatus.COMPLETED }).sort({ periodEnd: -1 });
-  const periodStart = lastPayout?.periodEnd || new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const { grossAmount, commission, netAmount } = await calculateExpertEarnings(expertId, periodStart, periodEnd);
-
-  if (netAmount <= 0) {
-    throw new Error("No earnings available for payout");
-  }
-
-  return Payout.create({
-    expertId,
-    amount: grossAmount,
-    commission,
-    netAmount,
-    periodStart,
-    periodEnd,
-    status: PayoutStatus.PENDING,
-  });
-}
-
+/**
+ * Process unpaid earnings for approved experts.
+ * Idempotent: each expert is paid only for the window after their last COMPLETED payout.
+ * Safe to re-run (admin batch or weekly cron) — already-paid periods are skipped.
+ */
 export async function processWeeklyPayouts(): Promise<number> {
   const periodEnd = new Date();
-  const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const defaultLookback = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const experts = await Expert.find({ isApproved: true, totalEarnings: { $gt: 0 } });
+  const experts = await Expert.find({ isApproved: true });
   let processed = 0;
 
   for (const expert of experts) {
-    const existing = await Payout.findOne({
+    if (!expert.bankDetails?.accountNumber) continue;
+
+    // Never create another payout while one is still open
+    const open = await Payout.findOne({
       expertId: expert._id,
-      periodStart: { $gte: periodStart },
-      periodEnd: { $lte: periodEnd },
+      status: { $in: [PayoutStatus.PENDING, PayoutStatus.PROCESSING] },
     });
-    if (existing) continue;
+    if (open) continue;
+
+    const lastPaid = await Payout.findOne({
+      expertId: expert._id,
+      status: PayoutStatus.COMPLETED,
+    }).sort({ periodEnd: -1 });
+
+    // Start strictly after the last paid window so calls aren't double-paid
+    const periodStart = lastPaid?.periodEnd
+      ? new Date(lastPaid.periodEnd.getTime() + 1)
+      : defaultLookback;
+
+    if (periodStart.getTime() >= periodEnd.getTime()) continue;
 
     const { grossAmount, commission, netAmount, callCount } = await calculateExpertEarnings(
       expert._id.toString(),

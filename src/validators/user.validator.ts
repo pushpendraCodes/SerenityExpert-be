@@ -21,9 +21,13 @@ export const fcmTokenSchema = z.object({
   token: z.string().min(1),
 });
 
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
-  sort: z.string().optional(),
-  order: z.enum(["asc", "desc"]).optional(),
-});
+export const paginationSchema = z
+  .object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    sort: z.string().optional(),
+    order: z.enum(["asc", "desc"]).optional(),
+  })
+  // Keep extra filter params (search, approved, role, type, status, filter, ...)
+  // so list controllers can read them — plain objects strip unknown keys.
+  .passthrough();

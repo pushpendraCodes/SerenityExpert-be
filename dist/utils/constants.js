@@ -41,6 +41,7 @@ exports.RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000; // 15 minutes
 exports.RATE_LIMIT_MAX_REQUESTS = 100;
 exports.OTP_RATE_LIMIT_MAX = 10; // 5 OTP requests per window
 // ─── Notification ─────────────────────────────────────────────────────────────
+/** Default fallback when AdminSettings.notification_retention_days is unset */
 exports.NOTIFICATION_TTL_DAYS = 90;
 // ─── Payout ───────────────────────────────────────────────────────────────────
 exports.DEFAULT_COMMISSION_PERCENT = 20;

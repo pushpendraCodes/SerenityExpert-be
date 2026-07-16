@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getSettings = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
+exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getSettings = exports.aiModerateQuestion = exports.moderateQuestion = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.issueRefund = exports.getCommissionReport = exports.listCalls = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.updateExpert = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
 const adminService = __importStar(require("../services/admin.service.js"));
 const expertService = __importStar(require("../services/expert.service.js"));
 const callService = __importStar(require("../services/call.service.js"));
@@ -81,6 +81,10 @@ exports.approveExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => 
     const expert = await adminService.approveExpert((0, params_js_1.getParam)(req, "id"), req.body);
     return (0, response_js_1.sendSuccess)(res, expert, "Expert updated");
 });
+exports.updateExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const expert = await adminService.updateExpertByAdmin((0, params_js_1.getParam)(req, "id"), req.body);
+    return (0, response_js_1.sendSuccess)(res, expert, "Expert updated");
+});
 exports.getLiveCalls = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
     const calls = await callService.getLiveCalls();
     return (0, response_js_1.sendSuccess)(res, calls);
@@ -98,6 +102,18 @@ exports.forceEndCall = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
 exports.getTransactions = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const result = await adminService.getTransactions(req.query);
     return (0, response_js_1.sendPaginated)(res, result);
+});
+exports.listCalls = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const result = await adminService.listCalls(req.query);
+    return (0, response_js_1.sendPaginated)(res, result);
+});
+exports.getCommissionReport = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const report = await adminService.getCommissionReport(req.query.period);
+    return (0, response_js_1.sendSuccess)(res, report);
+});
+exports.issueRefund = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const result = await adminService.issueRefund(req.body, req.user._id.toString());
+    return (0, response_js_1.sendSuccess)(res, result, "Refund issued");
 });
 exports.getPayouts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const result = await payoutService.getAllPayouts(req.query);
@@ -126,6 +142,14 @@ exports.deleteQuestion = (0, asyncHandler_js_1.asyncHandler)(async (req, res) =>
 exports.deleteComment = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     await communityService.adminDeleteComment((0, params_js_1.getParam)(req, "id"));
     return (0, response_js_1.sendSuccess)(res, null, "Comment removed");
+});
+exports.moderateQuestion = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const question = await adminService.moderateQuestion((0, params_js_1.getParam)(req, "id"), req.body);
+    return (0, response_js_1.sendSuccess)(res, question, "Question moderated");
+});
+exports.aiModerateQuestion = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const result = await adminService.runAiModerationOnQuestion((0, params_js_1.getParam)(req, "id"));
+    return (0, response_js_1.sendSuccess)(res, result, "AI moderation complete");
 });
 exports.getSettings = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
     const settings = await adminService.getSettings();

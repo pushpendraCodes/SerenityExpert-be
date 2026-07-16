@@ -14,7 +14,6 @@ exports.updateExpertStatus = updateExpertStatus;
 exports.updateAvailability = updateAvailability;
 exports.getExpertDashboard = getExpertDashboard;
 exports.getExpertEarnings = getExpertEarnings;
-exports.requestWithdrawal = requestWithdrawal;
 exports.getPublicCategories = getPublicCategories;
 const Expert_js_1 = __importDefault(require("../models/Expert.js"));
 const User_js_1 = __importDefault(require("../models/User.js"));
@@ -39,6 +38,7 @@ async function createExpertByAdmin(data) {
         throw new AppError_js_1.ConflictError("Mobile number already registered");
     const defaultPrice = data.pricePerMinute ?? await (0, admin_service_js_1.getDefaultPricePerMinute)();
     const defaultCommission = data.commissionPercent ?? await (0, admin_service_js_1.getDefaultCommission)();
+    await (0, admin_service_js_1.assertPriceWithinLimits)(defaultPrice);
     const user = await User_js_1.default.create({
         phone: normalizedMobile,
         name: data.name,
@@ -191,15 +191,6 @@ async function getExpertEarnings(userId, query) {
     if (!expert)
         throw new AppError_js_1.NotFoundError("Expert profile");
     return (0, payout_service_js_1.getExpertPayouts)(expert._id.toString(), query);
-}
-async function requestWithdrawal(userId) {
-    const expert = await Expert_js_1.default.findOne({ userId, isApproved: true });
-    if (!expert)
-        throw new AppError_js_1.ForbiddenError();
-    if (!expert.bankDetails?.accountNumber) {
-        throw new AppError_js_1.ForbiddenError("Bank details required for withdrawal");
-    }
-    return (0, payout_service_js_1.createPayoutRequest)(expert._id.toString());
 }
 async function getPublicCategories() {
     return Category_js_1.default.find({ isActive: true }).sort({ order: 1 }).select("name slug description icon");

@@ -72,8 +72,8 @@ const notificationSchema = new mongoose_1.Schema({
         },
     },
 });
-// TTL index — auto-delete after 90 days
-notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+// Retention is handled by cron using AdminSettings → notification_retention_days
+notificationSchema.index({ createdAt: 1 });
 notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
 const Notification = mongoose_1.default.model("Notification", notificationSchema);
 exports.default = Notification;

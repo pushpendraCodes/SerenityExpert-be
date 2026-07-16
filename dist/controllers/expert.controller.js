@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMe = exports.requestWithdraw = exports.getEarnings = exports.getDashboard = exports.updateAvailability = exports.updateStatus = exports.updateProfile = exports.getCategories = exports.getExpertReviews = exports.getExpertById = exports.browseExperts = void 0;
+exports.getMe = exports.getEarnings = exports.getDashboard = exports.updateAvailability = exports.updateStatus = exports.updateProfile = exports.getCategories = exports.getExpertReviews = exports.getExpertById = exports.browseExperts = void 0;
 const expertService = __importStar(require("../services/expert.service.js"));
 const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
@@ -73,10 +73,6 @@ exports.getDashboard = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
 exports.getEarnings = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const result = await expertService.getExpertEarnings(req.user._id.toString(), req.query);
     return (0, response_js_1.sendPaginated)(res, result);
-});
-exports.requestWithdraw = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const payout = await expertService.requestWithdrawal(req.user._id.toString());
-    return (0, response_js_1.sendCreated)(res, payout, "Withdrawal request submitted");
 });
 exports.getMe = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const dashboard = await expertService.getExpertDashboard(req.user._id.toString());

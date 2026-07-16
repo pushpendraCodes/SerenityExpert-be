@@ -53,6 +53,11 @@ export const approveExpert = asyncHandler(async (req: Request, res: Response) =>
   return sendSuccess(res, expert, "Expert updated");
 });
 
+export const updateExpert = asyncHandler(async (req: Request, res: Response) => {
+  const expert = await adminService.updateExpertByAdmin(getParam(req, "id"), req.body);
+  return sendSuccess(res, expert, "Expert updated");
+});
+
 export const getLiveCalls = asyncHandler(async (_req: Request, res: Response) => {
   const calls = await callService.getLiveCalls();
   return sendSuccess(res, calls);
@@ -73,6 +78,23 @@ export const forceEndCall = asyncHandler(async (req: Request, res: Response) => 
 export const getTransactions = asyncHandler(async (req: Request, res: Response) => {
   const result = await adminService.getTransactions(req.query);
   return sendPaginated(res, result);
+});
+
+export const listCalls = asyncHandler(async (req: Request, res: Response) => {
+  const result = await adminService.listCalls(req.query);
+  return sendPaginated(res, result);
+});
+
+export const getCommissionReport = asyncHandler(async (req: Request, res: Response) => {
+  const report = await adminService.getCommissionReport(
+    req.query.period as "week" | "month" | "year"
+  );
+  return sendSuccess(res, report);
+});
+
+export const issueRefund = asyncHandler(async (req: Request, res: Response) => {
+  const result = await adminService.issueRefund(req.body, req.user!._id.toString());
+  return sendSuccess(res, result, "Refund issued");
 });
 
 export const getPayouts = asyncHandler(async (req: Request, res: Response) => {
@@ -112,6 +134,16 @@ export const deleteQuestion = asyncHandler(async (req: Request, res: Response) =
 export const deleteComment = asyncHandler(async (req: Request, res: Response) => {
   await communityService.adminDeleteComment(getParam(req, "id"));
   return sendSuccess(res, null, "Comment removed");
+});
+
+export const moderateQuestion = asyncHandler(async (req: Request, res: Response) => {
+  const question = await adminService.moderateQuestion(getParam(req, "id"), req.body);
+  return sendSuccess(res, question, "Question moderated");
+});
+
+export const aiModerateQuestion = asyncHandler(async (req: Request, res: Response) => {
+  const result = await adminService.runAiModerationOnQuestion(getParam(req, "id"));
+  return sendSuccess(res, result, "AI moderation complete");
 });
 
 export const getSettings = asyncHandler(async (_req: Request, res: Response) => {

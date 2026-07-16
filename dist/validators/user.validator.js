@@ -19,10 +19,14 @@ exports.verifyPaymentSchema = zod_1.z.object({
 exports.fcmTokenSchema = zod_1.z.object({
     token: zod_1.z.string().min(1),
 });
-exports.paginationSchema = zod_1.z.object({
+exports.paginationSchema = zod_1.z
+    .object({
     page: zod_1.z.coerce.number().int().min(1).optional(),
     limit: zod_1.z.coerce.number().int().min(1).max(100).optional(),
     sort: zod_1.z.string().optional(),
     order: zod_1.z.enum(["asc", "desc"]).optional(),
-});
+})
+    // Keep extra filter params (search, approved, role, type, status, filter, ...)
+    // so list controllers can read them — plain objects strip unknown keys.
+    .passthrough();
 //# sourceMappingURL=user.validator.js.map

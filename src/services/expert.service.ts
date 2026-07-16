@@ -3,8 +3,12 @@ import User from "../models/User.js";
 import Category from "../models/Category.js";
 import Call from "../models/Call.js";
 import { CallStatus } from "../types/index.js";
-import { getDefaultCommission, getDefaultPricePerMinute } from "./admin.service.js";
-import { getExpertEarningsSummary, getExpertPayouts, createPayoutRequest } from "./payout.service.js";
+import {
+  assertPriceWithinLimits,
+  getDefaultCommission,
+  getDefaultPricePerMinute,
+} from "./admin.service.js";
+import { getExpertEarningsSummary, getExpertPayouts } from "./payout.service.js";
 import { paginate } from "../utils/pagination.js";
 import { ExpertStatus, UserRole } from "../types/index.js";
 import { generateDummyAvatar } from "../utils/constants.js";
@@ -35,6 +39,7 @@ export async function createExpertByAdmin(data: {
 
   const defaultPrice = data.pricePerMinute ?? await getDefaultPricePerMinute();
   const defaultCommission = data.commissionPercent ?? await getDefaultCommission();
+  await assertPriceWithinLimits(defaultPrice);
 
   const user = await User.create({
     phone: normalizedMobile,
@@ -223,17 +228,6 @@ export async function getExpertEarnings(userId: string, query: PaginationQuery) 
   if (!expert) throw new NotFoundError("Expert profile");
 
   return getExpertPayouts(expert._id.toString(), query);
-}
-
-export async function requestWithdrawal(userId: string) {
-  const expert = await Expert.findOne({ userId, isApproved: true });
-  if (!expert) throw new ForbiddenError();
-
-  if (!expert.bankDetails?.accountNumber) {
-    throw new ForbiddenError("Bank details required for withdrawal");
-  }
-
-  return createPayoutRequest(expert._id.toString());
 }
 
 export async function getPublicCategories() {

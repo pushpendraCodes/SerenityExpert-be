@@ -10,6 +10,7 @@ exports.endCall = endCall;
 exports.rateCall = rateCall;
 exports.getLiveCalls = getLiveCalls;
 exports.timeoutRingingCalls = timeoutRingingCalls;
+exports.timeoutStaleActiveCalls = timeoutStaleActiveCalls;
 exports.saveCallRecording = saveCallRecording;
 const Call_js_1 = __importDefault(require("../models/Call.js"));
 const Expert_js_1 = __importDefault(require("../models/Expert.js"));
@@ -41,7 +42,25 @@ async function initiateCall(userId, expertId) {
         status: { $in: [index_js_1.CallStatus.RINGING, index_js_1.CallStatus.ACTIVE] },
     });
     if (existingCall) {
-        throw new AppError_js_1.ConflictError("You already have an active call");
+        // If a previous call is stuck (disconnect/error without a clean end), free the user
+        // so they can place a new call immediately.
+        const existingId = existingCall._id.toString();
+        const liveState = await (0, cache_service_js_1.cacheGet)(cache_service_js_1.CacheKeys.activeCall(existingId));
+        const isStaleRinging = existingCall.status === index_js_1.CallStatus.RINGING &&
+            Date.now() - new Date(existingCall.createdAt).getTime() > constants_js_1.CALL_RING_TIMEOUT_SECONDS * 1000;
+        const heartbeatAt = liveState?.updatedAt
+            ? new Date(liveState.updatedAt).getTime()
+            : liveState?.startedAt
+                ? new Date(liveState.startedAt).getTime()
+                : 0;
+        const isStaleActive = existingCall.status === index_js_1.CallStatus.ACTIVE &&
+            (!liveState || !heartbeatAt || Date.now() - heartbeatAt > 45_000);
+        if (isStaleRinging || isStaleActive) {
+            await endCall(existingId, userId, "force_ended");
+        }
+        else {
+            throw new AppError_js_1.ConflictError("You already have an active call");
+        }
     }
     const expertUser = expert.userId;
     const call = await Call_js_1.default.create({
@@ -103,6 +122,7 @@ async function acceptCall(callId, expertUserId) {
         startedAt: call.startedAt.toISOString(),
         elapsedSeconds: 0,
         totalCost: 0,
+        updatedAt: new Date().toISOString(),
     });
     startBillingTimer(callId);
     (0, socket_js_1.emitToUser)(call.userId.toString(), "call:accepted", {
@@ -141,31 +161,38 @@ function startBillingTimer(callId) {
             }
             state.elapsedSeconds += 1;
             state.totalCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, state.elapsedSeconds);
-            const balance = await (0, wallet_service_js_1.getBalance)(state.userId);
-            const minsLeft = (0, wallet_service_js_1.minutesRemaining)(balance, state.pricePerMinute);
+            const walletBalance = await (0, wallet_service_js_1.getBalance)(state.userId);
+            // Wallet is only debited when the call ends — remaining = wallet minus accrued cost
+            const remainingBalance = Math.max(0, Math.round((walletBalance - state.totalCost) * 100) / 100);
+            const minsLeft = (0, wallet_service_js_1.minutesRemaining)(remainingBalance, state.pricePerMinute);
+            const costPerSecond = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, 1);
             (0, socket_js_1.emitToUser)(state.userId, "call:timer", {
                 callId,
                 elapsed: state.elapsedSeconds,
                 cost: state.totalCost,
-                balance,
+                balance: remainingBalance,
             });
             (0, socket_js_1.emitToUser)(state.expertUserId, "call:timer", {
                 callId,
                 elapsed: state.elapsedSeconds,
                 cost: state.totalCost,
-                balance,
+                balance: remainingBalance,
             });
-            if (minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && minsLeft > 0) {
+            if (minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
+                console.log(`⚠️ Low balance warning for call ${callId}: balance=${remainingBalance}, minsLeft=${minsLeft}`);
                 (0, socket_js_1.emitToUser)(state.userId, "call:low-balance", {
                     callId,
-                    balance,
+                    balance: remainingBalance,
                     minutesRemaining: minsLeft,
                 });
             }
-            if (balance < (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, 1)) {
+            // Auto-cut once remaining balance can't cover another second
+            if (remainingBalance < costPerSecond) {
+                console.log(`✂️ Auto-ending call ${callId} for low balance: balance=${remainingBalance}, costPerSecond=${costPerSecond}`);
                 await endCall(callId, state.userId, "low_balance");
                 return;
             }
+            state.updatedAt = new Date().toISOString();
             await (0, cache_service_js_1.cacheSet)(cache_service_js_1.CacheKeys.activeCall(callId), state);
         }
         catch (err) {
@@ -195,10 +222,22 @@ async function endCall(callId, endedByUserId, reason = "completed") {
         (call.startedAt ? Math.floor((Date.now() - call.startedAt.getTime()) / 1000) : 0);
     const totalCost = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, durationSeconds);
     if (totalCost > 0 && call.status === index_js_1.CallStatus.ACTIVE) {
-        await (0, wallet_service_js_1.debitWallet)(call.userId.toString(), totalCost, `Call with expert (${durationSeconds}s)`, {
-            referenceId: callId,
-            referenceType: "call",
-        });
+        // Per-second ceil rounding can overshoot the wallet balance by a fraction of a
+        // cent right at the auto-cut boundary — clamp so ending a call never fails.
+        const walletBalance = await (0, wallet_service_js_1.getBalance)(call.userId.toString());
+        const debitAmount = Math.min(totalCost, walletBalance);
+        try {
+            if (debitAmount > 0) {
+                await (0, wallet_service_js_1.debitWallet)(call.userId.toString(), debitAmount, `Call with expert (${durationSeconds}s)`, {
+                    referenceId: callId,
+                    referenceType: "call",
+                });
+            }
+        }
+        catch (err) {
+            // Never let a billing hiccup leave the call stuck ACTIVE — log and still complete it.
+            console.error(`Failed to debit wallet for call ${callId}:`, err);
+        }
         const expert = await Expert_js_1.default.findById(call.expertId);
         if (expert) {
             const commission = (totalCost * expert.commissionPercent) / 100;
@@ -241,6 +280,7 @@ async function endCall(callId, endedByUserId, reason = "completed") {
         duration: durationSeconds,
         cost: totalCost,
         status: call.status,
+        endReason: reason,
         recordingUrl: call.recordingUrl,
     };
     (0, socket_js_1.emitToUser)(call.userId.toString(), "call:ended", endedPayload);
@@ -302,6 +342,34 @@ async function timeoutRingingCalls() {
         });
     }
     return ringingCalls.length;
+}
+/**
+ * Force-complete ACTIVE calls whose Redis billing state is gone, or whose
+ * billing heartbeat stopped (e.g. server restart). Frees the user to call again.
+ */
+async function timeoutStaleActiveCalls() {
+    const STALE_HEARTBEAT_MS = 45_000;
+    const GRACE_MS = 15_000;
+    const activeCalls = await Call_js_1.default.find({ status: index_js_1.CallStatus.ACTIVE });
+    let closed = 0;
+    for (const call of activeCalls) {
+        const callId = call._id.toString();
+        const state = await (0, cache_service_js_1.cacheGet)(cache_service_js_1.CacheKeys.activeCall(callId));
+        const startedAt = call.startedAt ? new Date(call.startedAt).getTime() : 0;
+        if (startedAt && Date.now() - startedAt < GRACE_MS)
+            continue;
+        const heartbeatAt = state?.updatedAt
+            ? new Date(state.updatedAt).getTime()
+            : state?.startedAt
+                ? new Date(state.startedAt).getTime()
+                : 0;
+        const isStale = !state || !heartbeatAt || Date.now() - heartbeatAt > STALE_HEARTBEAT_MS;
+        if (!isStale)
+            continue;
+        await endCall(callId, call.userId.toString(), "force_ended");
+        closed += 1;
+    }
+    return closed;
 }
 async function saveCallRecording(callId, userId, buffer) {
     const call = await Call_js_1.default.findById(callId);

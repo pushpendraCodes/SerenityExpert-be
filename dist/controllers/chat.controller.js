@@ -65,7 +65,8 @@ exports.sendMessage = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     }
     let imageUrl;
     if (req.file) {
-        const uploaded = await (0, cloudinary_service_js_1.uploadImage)(req.file.buffer, "chat", (0, params_js_1.getParam)(req, "id"));
+        // Unique public_id so retention cleanup can delete each image independently
+        const uploaded = await (0, cloudinary_service_js_1.uploadImage)(req.file.buffer, "chat", `${(0, params_js_1.getParam)(req, "id")}_${Date.now()}`);
         imageUrl = uploaded.url;
     }
     const content = String(req.body.content ?? "").trim();

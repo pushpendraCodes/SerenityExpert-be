@@ -43,6 +43,7 @@ export const OTP_RATE_LIMIT_MAX = 10; // 5 OTP requests per window
 
 // ─── Notification ─────────────────────────────────────────────────────────────
 
+/** Default fallback when AdminSettings.notification_retention_days is unset */
 export const NOTIFICATION_TTL_DAYS = 90;
 
 // ─── Payout ───────────────────────────────────────────────────────────────────

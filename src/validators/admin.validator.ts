@@ -30,6 +30,16 @@ export const createExpertSchema = z.object({
   }).optional(),
 });
 
+export const updateExpertSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  bio: z.string().max(1000).optional(),
+  experience: z.number().min(0).optional(),
+  categories: z.array(z.string()).min(1, "At least one category required").optional(),
+  languages: z.array(z.string()).min(1).optional(),
+  pricePerMinute: z.number().min(0).optional(),
+  commissionPercent: z.number().min(0).max(100).optional(),
+});
+
 export const approveExpertSchema = z.object({
   isApproved: z.boolean(),
   rejectionReason: z.string().optional(),
@@ -94,4 +104,17 @@ export const pushNotificationSchema = z.object({
 
 export const analyticsQuerySchema = z.object({
   period: z.enum(["week", "month", "year"]).optional(),
+});
+
+export const refundSchema = z.object({
+  userId: z.string().min(1),
+  amount: z.number().positive(),
+  description: z.string().min(3).max(500),
+  callId: z.string().optional(),
+});
+
+export const moderateQuestionSchema = z.object({
+  isFlagged: z.boolean().optional(),
+  isModerated: z.boolean().optional(),
+  isDeleted: z.boolean().optional(),
 });

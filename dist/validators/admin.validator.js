@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.analyticsQuerySchema = exports.pushNotificationSchema = exports.resolveReportSchema = exports.createCouponSchema = exports.createBannerSchema = exports.createFaqSchema = exports.createCategorySchema = exports.updateSettingsSchema = exports.approveExpertSchema = exports.createExpertSchema = exports.walletAdjustmentSchema = exports.manageUserSchema = void 0;
+exports.moderateQuestionSchema = exports.refundSchema = exports.analyticsQuerySchema = exports.pushNotificationSchema = exports.resolveReportSchema = exports.createCouponSchema = exports.createBannerSchema = exports.createFaqSchema = exports.createCategorySchema = exports.updateSettingsSchema = exports.approveExpertSchema = exports.updateExpertSchema = exports.createExpertSchema = exports.walletAdjustmentSchema = exports.manageUserSchema = void 0;
 const zod_1 = require("zod");
 const index_js_1 = require("../types/index.js");
 exports.manageUserSchema = zod_1.z.object({
@@ -28,6 +28,15 @@ exports.createExpertSchema = zod_1.z.object({
         bankName: zod_1.z.string().min(1),
         upiId: zod_1.z.string().optional(),
     }).optional(),
+});
+exports.updateExpertSchema = zod_1.z.object({
+    name: zod_1.z.string().min(2).max(100).optional(),
+    bio: zod_1.z.string().max(1000).optional(),
+    experience: zod_1.z.number().min(0).optional(),
+    categories: zod_1.z.array(zod_1.z.string()).min(1, "At least one category required").optional(),
+    languages: zod_1.z.array(zod_1.z.string()).min(1).optional(),
+    pricePerMinute: zod_1.z.number().min(0).optional(),
+    commissionPercent: zod_1.z.number().min(0).max(100).optional(),
 });
 exports.approveExpertSchema = zod_1.z.object({
     isApproved: zod_1.z.boolean(),
@@ -85,5 +94,16 @@ exports.pushNotificationSchema = zod_1.z.object({
 });
 exports.analyticsQuerySchema = zod_1.z.object({
     period: zod_1.z.enum(["week", "month", "year"]).optional(),
+});
+exports.refundSchema = zod_1.z.object({
+    userId: zod_1.z.string().min(1),
+    amount: zod_1.z.number().positive(),
+    description: zod_1.z.string().min(3).max(500),
+    callId: zod_1.z.string().optional(),
+});
+exports.moderateQuestionSchema = zod_1.z.object({
+    isFlagged: zod_1.z.boolean().optional(),
+    isModerated: zod_1.z.boolean().optional(),
+    isDeleted: zod_1.z.boolean().optional(),
 });
 //# sourceMappingURL=admin.validator.js.map

@@ -8,6 +8,7 @@ import {
   walletAdjustmentSchema,
   approveExpertSchema,
   createExpertSchema,
+  updateExpertSchema,
   updateSettingsSchema,
   createCategorySchema,
   createFaqSchema,
@@ -16,6 +17,8 @@ import {
   resolveReportSchema,
   pushNotificationSchema,
   analyticsQuerySchema,
+  refundSchema,
+  moderateQuestionSchema,
 } from "../validators/admin.validator.js";
 
 const router = Router();
@@ -39,14 +42,18 @@ router.put("/users/:id/wallet", validate(walletAdjustmentSchema), adminControlle
 router.get("/experts", validate(paginationSchema, "query"), adminController.listExperts);
 router.post("/experts", validate(createExpertSchema), adminController.createExpert);
 router.put("/experts/:id/approve", validate(approveExpertSchema), adminController.approveExpert);
+router.put("/experts/:id", validate(updateExpertSchema), adminController.updateExpert);
 
 // Calls
 router.get("/calls/live", adminController.getLiveCalls);
+router.get("/calls", validate(paginationSchema, "query"), adminController.listCalls);
 router.get("/calls/:id", adminController.getCallDetails);
 router.post("/calls/:id/force-end", adminController.forceEndCall);
 
 // Payments
 router.get("/transactions", validate(paginationSchema, "query"), adminController.getTransactions);
+router.get("/commission-report", adminController.getCommissionReport);
+router.post("/refunds", validate(refundSchema), adminController.issueRefund);
 router.get("/payouts", validate(paginationSchema, "query"), adminController.getPayouts);
 router.post("/payouts/process", adminController.processPayouts);
 
@@ -54,6 +61,12 @@ router.post("/payouts/process", adminController.processPayouts);
 router.get("/reports", validate(paginationSchema, "query"), adminController.getReports);
 router.put("/reports/:id", validate(resolveReportSchema), adminController.resolveReport);
 router.get("/community", validate(paginationSchema, "query"), adminController.getCommunityContent);
+router.put(
+  "/community/questions/:id/moderate",
+  validate(moderateQuestionSchema),
+  adminController.moderateQuestion
+);
+router.post("/community/questions/:id/ai-check", adminController.aiModerateQuestion);
 router.delete("/community/questions/:id", adminController.deleteQuestion);
 router.delete("/community/comments/:id", adminController.deleteComment);
 

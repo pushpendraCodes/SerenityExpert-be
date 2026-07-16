@@ -28,7 +28,6 @@ expertRouter.put("/me/status", requireApprovedExpert, validate(updateStatusSchem
 expertRouter.put("/me/availability", validate(updateAvailabilitySchema), expertController.updateAvailability);
 expertRouter.get("/me/dashboard", expertController.getDashboard);
 expertRouter.get("/me/earnings", validate(paginationSchema, "query"), expertController.getEarnings);
-expertRouter.post("/me/withdraw", requireApprovedExpert, expertController.requestWithdraw);
 
 router.use(expertRouter);
 

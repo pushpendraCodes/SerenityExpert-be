@@ -54,7 +54,6 @@ expertRouter.put("/me/status", auth_js_1.requireApprovedExpert, (0, validate_js_
 expertRouter.put("/me/availability", (0, validate_js_1.validate)(expert_validator_js_1.updateAvailabilitySchema), expertController.updateAvailability);
 expertRouter.get("/me/dashboard", expertController.getDashboard);
 expertRouter.get("/me/earnings", (0, validate_js_1.validate)(user_validator_js_1.paginationSchema, "query"), expertController.getEarnings);
-expertRouter.post("/me/withdraw", auth_js_1.requireApprovedExpert, expertController.requestWithdraw);
 router.use(expertRouter);
 exports.default = router;
 //# sourceMappingURL=expert.routes.js.map

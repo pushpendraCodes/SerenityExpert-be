@@ -154,6 +154,7 @@ export interface ServerToClientEvents {
     duration: number;
     cost: number;
     status?: string;
+    endReason?: string;
     recordingUrl?: string;
   }) => void;
   "call:timer": (data: { callId: string; elapsed: number; cost: number; balance: number }) => void;

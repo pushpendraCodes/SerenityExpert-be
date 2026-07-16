@@ -1,7 +1,8 @@
 import cron from "node-cron";
 import Otp from "../models/Otp.js";
-import { timeoutRingingCalls } from "../services/call.service.js";
+import { timeoutRingingCalls, timeoutStaleActiveCalls } from "../services/call.service.js";
 import { processWeeklyPayouts } from "../services/payout.service.js";
+import { runRetentionCleanup } from "../services/retention.service.js";
 
 export function startScheduledJobs(): void {
   // Cleanup expired OTPs every hour (belt & suspenders with MongoDB TTL)
@@ -16,12 +17,16 @@ export function startScheduledJobs(): void {
     }
   });
 
-  // Auto-end ringing calls after timeout — every minute
+  // Auto-end ringing / stale active calls — every minute
   cron.schedule("* * * * *", async () => {
     try {
-      const count = await timeoutRingingCalls();
-      if (count > 0) {
-        console.log(`📞 Timed out ${count} ringing calls`);
+      const ringing = await timeoutRingingCalls();
+      if (ringing > 0) {
+        console.log(`📞 Timed out ${ringing} ringing calls`);
+      }
+      const stale = await timeoutStaleActiveCalls();
+      if (stale > 0) {
+        console.log(`📞 Force-ended ${stale} stale active calls`);
       }
     } catch (err) {
       console.error("Call timeout job failed:", err);
@@ -35,6 +40,16 @@ export function startScheduledJobs(): void {
       console.log(`💰 Processed ${count} weekly payouts`);
     } catch (err) {
       console.error("Weekly payout job failed:", err);
+    }
+  });
+
+  // Data retention — chats, notifications, call recordings (daily 3:00 AM IST = 21:30 UTC)
+  cron.schedule("30 21 * * *", async () => {
+    try {
+      console.log("🧹 Running data retention cleanup…");
+      await runRetentionCleanup();
+    } catch (err) {
+      console.error("Retention cleanup job failed:", err);
     }
   });
 

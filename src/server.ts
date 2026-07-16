@@ -7,6 +7,7 @@ import { initializeSocket } from "./config/socket.js";
 import { initializeFirebase } from "./config/firebase.js";
 import { configureCloudinary } from "./config/cloudinary.js";
 import { seedDefaultSettings } from "./services/admin.service.js";
+import { ensureNotificationRetentionIndex } from "./services/retention.service.js";
 import { startScheduledJobs } from "./jobs/index.js";
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -18,6 +19,7 @@ async function bootstrap(): Promise<void> {
   configureCloudinary();
   initializeFirebase();
   await seedDefaultSettings();
+  await ensureNotificationRetentionIndex();
 
   const httpServer = http.createServer(app);
   initializeSocket(httpServer);
