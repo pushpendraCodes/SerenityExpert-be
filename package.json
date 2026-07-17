@@ -33,13 +33,13 @@
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
     "node-cron": "^4.6.0",
+    "openai": "^6.48.0",
     "razorpay": "^2.9.6",
     "redis": "^6.1.0",
     "socket.io": "^4.8.0",
-    "zod": "^3.25.67",
-    "@google/generative-ai": "^0.24.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

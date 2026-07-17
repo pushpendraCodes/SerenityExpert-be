@@ -72,30 +72,98 @@ async function getDashboardMetrics() {
 }
 async function getAnalytics(period = "week") {
     const days = period === "week" ? 7 : period === "month" ? 30 : 365;
-    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-    const [userSignups, recharges, calls, revenue] = await Promise.all([
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    startDate.setDate(startDate.getDate() - (days - 1));
+    const dateFormat = period === "year" ? "%Y-%m" : "%Y-%m-%d";
+    const [userSignupsRaw, rechargesRaw, callsRaw, revenueRaw] = await Promise.all([
         User_js_1.default.aggregate([
             { $match: { createdAt: { $gte: startDate } } },
-            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
+            { $group: { _id: { $dateToString: { format: dateFormat, date: "$createdAt" } }, count: { $sum: 1 } } },
             { $sort: { _id: 1 } },
         ]),
         Recharge_js_1.default.aggregate([
             { $match: { status: index_js_1.RechargeStatus.PAID, createdAt: { $gte: startDate } } },
-            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 }, amount: { $sum: "$amount" } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+                    count: { $sum: 1 },
+                    amount: { $sum: "$amount" },
+                },
+            },
             { $sort: { _id: 1 } },
         ]),
         Call_js_1.default.aggregate([
             { $match: { status: index_js_1.CallStatus.COMPLETED, createdAt: { $gte: startDate } } },
-            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 }, revenue: { $sum: "$totalCost" } } },
+            {
+                $group: {
+                    _id: { $dateToString: { format: dateFormat, date: "$createdAt" } },
+                    count: { $sum: 1 },
+                    revenue: { $sum: "$totalCost" },
+                },
+            },
             { $sort: { _id: 1 } },
         ]),
         Transaction_js_1.default.aggregate([
             { $match: { type: "recharge", status: "completed", createdAt: { $gte: startDate } } },
-            { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, total: { $sum: "$amount" } } },
+            { $group: { _id: { $dateToString: { format: dateFormat, date: "$createdAt" } }, total: { $sum: "$amount" } } },
             { $sort: { _id: 1 } },
         ]),
     ]);
-    return { userSignups, recharges, calls, revenue, period };
+    const buckets = buildPeriodBuckets(startDate, period);
+    return {
+        userSignups: fillBuckets(buckets, userSignupsRaw, "count"),
+        recharges: fillBuckets(buckets, rechargesRaw, "amount", { count: 0 }),
+        calls: fillBuckets(buckets, callsRaw, "count", { revenue: 0 }),
+        revenue: fillBuckets(buckets, revenueRaw, "total"),
+        period,
+    };
+}
+function pad2(n) {
+    return String(n).padStart(2, "0");
+}
+function toDayKey(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+function toMonthKey(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+}
+/** Continuous day or month keys for the selected period so charts don't skip empty slots. */
+function buildPeriodBuckets(startDate, period) {
+    const keys = [];
+    if (period === "year") {
+        const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const end = new Date();
+        end.setDate(1);
+        while (cursor <= end) {
+            keys.push(toMonthKey(cursor));
+            cursor.setMonth(cursor.getMonth() + 1);
+        }
+        return keys;
+    }
+    const cursor = new Date(startDate);
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    while (cursor <= end) {
+        keys.push(toDayKey(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return keys;
+}
+function fillBuckets(keys, rows, primaryField, extras = {}) {
+    const map = new Map(rows.map((r) => [String(r._id), r]));
+    return keys.map((key) => {
+        const row = map.get(key);
+        const out = { _id: key, [primaryField]: 0, ...extras };
+        if (row) {
+            for (const [k, v] of Object.entries(row)) {
+                if (k === "_id")
+                    continue;
+                out[k] = v;
+            }
+        }
+        return out;
+    });
 }
 async function listUsers(query) {
     const filter = {};

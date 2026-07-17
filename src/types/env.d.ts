@@ -49,8 +49,8 @@ declare namespace NodeJS {
     RAZORPAY_KEY_SECRET: string;
     RAZORPAY_WEBHOOK_SECRET: string;
 
-    // Gemini
-    GEMINI_API_KEY: string;
+    // OpenAI (community AI moderation)
+    OPENAI_API_KEY?: string;
 
     // Agora
     AGORA_APP_ID?: string;

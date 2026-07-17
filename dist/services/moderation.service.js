@@ -12,12 +12,13 @@ async function moderateContent(text) {
         return { isFlagged: false, confidence: 0 };
     }
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "Gemini 2 Flash" });
         const prompt = `Analyze the following text for abusive, spam, hate speech, or inappropriate content.
 Respond ONLY with JSON: {"isFlagged": boolean, "reason": string|null, "confidence": number 0-1}
 
 Text: "${text.replace(/"/g, '\\"')}"`;
         const result = await model.generateContent(prompt);
+        console.log(result,'result');
         const response = result.response.text();
         const jsonMatch = response.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
