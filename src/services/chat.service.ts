@@ -11,6 +11,11 @@ import type { IChat } from "../models/Chat.js";
 import type { IMessage } from "../models/Message.js";
 
 export async function getOrCreateChat(userId: string, expertId: string): Promise<IChat> {
+  const expert = await Expert.findOne({ _id: expertId, isApproved: true });
+  if (!expert) {
+    throw new NotFoundError("Person");
+  }
+
   let chat = await Chat.findOne({ userId, expertId });
   if (!chat) {
     chat = await Chat.create({ userId, expertId, status: ChatStatus.ACTIVE });
@@ -29,7 +34,11 @@ export async function getUserChats(userId: string, isExpert: boolean, query: Pag
     query,
     populate: isExpert
       ? { path: "userId", select: "name avatar" }
-      : { path: "expertId", populate: { path: "userId", select: "name avatar" } },
+      : {
+          path: "expertId",
+          select: "userId status pricePerMinute isApproved",
+          populate: { path: "userId", select: "name avatar gender" },
+        },
     sort: { lastMessageAt: -1, updatedAt: -1 },
   });
 }

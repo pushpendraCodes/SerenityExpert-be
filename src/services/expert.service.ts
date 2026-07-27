@@ -87,6 +87,7 @@ export async function browseExperts(query: PaginationQuery & {
   language?: string;
   minRating?: number;
   status?: ExpertStatus;
+  gender?: string;
   sort?: string;
 }) {
   const filter: Record<string, unknown> = { isApproved: true };
@@ -95,6 +96,11 @@ export async function browseExperts(query: PaginationQuery & {
   if (query.language) filter.languages = query.language;
   if (query.minRating) filter.rating = { $gte: query.minRating };
   if (query.status) filter.status = query.status;
+
+  if (query.gender) {
+    const genderUsers = await User.find({ gender: query.gender }).select("_id");
+    filter.userId = { $in: genderUsers.map((u) => u._id) };
+  }
 
   if (query.search) {
     const term = query.search.trim();
@@ -115,21 +121,30 @@ export async function browseExperts(query: PaginationQuery & {
   if (query.sort === "price") sort = { pricePerMinute: query.order === "asc" ? 1 : -1 };
   if (query.sort === "experience") sort = { experience: -1 };
 
-  return paginate({
+  const result = await paginate({
     model: Expert,
     filter,
     query,
     populate: [
-      { path: "userId", select: "name avatar" },
+      { path: "userId", select: "name avatar gender city state country" },
       { path: "categories", select: "name slug icon" },
     ],
     sort,
   });
+
+  // Online (staff-panel status) first, then busy, then offline — within the page.
+  const rank = (status: string) =>
+    status === ExpertStatus.ONLINE ? 0 : status === ExpertStatus.BUSY ? 1 : 2;
+  result.data = [...result.data].sort(
+    (a, b) => rank((a as IExpert).status) - rank((b as IExpert).status)
+  );
+
+  return result;
 }
 
 export async function getExpertProfile(expertId: string) {
   const expert = await Expert.findOne({ _id: expertId, isApproved: true })
-    .populate("userId", "name avatar")
+    .populate("userId", "name avatar gender city state country")
     .populate("categories", "name slug icon");
 
   if (!expert) throw new NotFoundError("Expert");

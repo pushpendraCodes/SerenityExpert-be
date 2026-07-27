@@ -1,14 +1,25 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
-import { UserRole } from "../types/index.js";
+import { UserRole, Gender } from "../types/index.js";
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
+  /** Public display name — auto-generated, shown to everyone (never the real name). */
   name: string;
+  /** Real name collected at signup. Private — never exposed publicly. */
+  realName?: string;
+  /** Date of birth collected at signup. Private. */
+  dob?: Date;
   phone: string;
   email?: string;
   avatar: string;
   googleId?: string;
   role: UserRole;
+  gender?: Gender;
+  country?: string;
+  city?: string;
+  state?: string;
+  profileCompleted: boolean;
+  freeSecondsRemaining: number;
   isVerified: boolean;
   isBlocked: boolean;
   walletBalance: number;
@@ -26,6 +37,16 @@ const userSchema = new Schema<IUser>(
       required: true,
       trim: true,
       maxlength: 100,
+    },
+    realName: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      select: false,
+    },
+    dob: {
+      type: Date,
+      select: false,
     },
     phone: {
       type: String,
@@ -52,6 +73,34 @@ const userSchema = new Schema<IUser>(
       type: String,
       enum: Object.values(UserRole),
       default: UserRole.USER,
+    },
+    gender: {
+      type: String,
+      enum: Object.values(Gender),
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    city: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    state: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    freeSecondsRemaining: {
+      type: Number,
+      default: 300,
+      min: 0,
     },
     isVerified: {
       type: Boolean,
@@ -90,7 +139,6 @@ const userSchema = new Schema<IUser>(
   }
 );
 
-// Indexes
 userSchema.index({ email: 1 }, { sparse: true });
 userSchema.index({ googleId: 1 }, { sparse: true });
 userSchema.index({ role: 1 });

@@ -16,6 +16,9 @@ router.post("/send-otp", otpLimiter, validate(sendOtpSchema), authController.sen
 router.post("/verify-otp", authLimiter, validate(verifyOtpSchema), authController.verifyOtp);
 router.post("/expert/send-otp", otpLimiter, validate(sendOtpSchema), authController.sendExpertOtp);
 router.post("/expert/verify-otp", authLimiter, validate(verifyOtpSchema), authController.verifyExpertOtp);
+/** Staff aliases (same handlers as expert) */
+router.post("/staff/send-otp", otpLimiter, validate(sendOtpSchema), authController.sendExpertOtp);
+router.post("/staff/verify-otp", authLimiter, validate(verifyOtpSchema), authController.verifyExpertOtp);
 router.post("/google", authLimiter, validate(googleLoginSchema), authController.googleLogin);
 router.post("/refresh", validate(refreshTokenSchema), authController.refreshToken);
 router.post("/logout", authenticate, requireUser, authController.logout);

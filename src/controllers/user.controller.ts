@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import User from "../models/User.js";
+import Expert from "../models/Expert.js";
 import Transaction from "../models/Transaction.js";
 import Call from "../models/Call.js";
 import Recharge from "../models/Recharge.js";
@@ -13,18 +14,38 @@ import { getParam } from "../utils/params.js";
 import { paginate } from "../utils/pagination.js";
 
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.user!._id);
-  return sendSuccess(res, user);
+  // realName + dob are select:false (private) — explicitly include them for the owner only.
+  const user = await User.findById(req.user!._id).select("+realName +dob");
+  const staff = await Expert.findOne({ userId: req.user!._id, isApproved: true }).select(
+    "_id status isApproved pricePerMinute"
+  );
+  return sendSuccess(res, {
+    ...user?.toJSON(),
+    hasStaffProfile: Boolean(staff),
+    staffProfile: staff || undefined,
+  });
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email } = req.body;
-  const user = await User.findByIdAndUpdate(
-    req.user!._id,
-    { ...(name && { name }), ...(email && { email }) },
-    { new: true, runValidators: true }
-  );
+  const { name, email, gender, country, city, state } = req.body;
+  const updates: Record<string, unknown> = {};
+  if (name) updates.name = name;
+  if (email) updates.email = email;
+  if (gender) updates.gender = gender;
+  if (country) updates.country = country;
+  if (city) updates.city = city;
+  if (state) updates.state = state;
+
+  const user = await User.findByIdAndUpdate(req.user!._id, updates, {
+    new: true,
+    runValidators: true,
+  });
   return sendSuccess(res, user, "Profile updated");
+});
+
+export const completeProfile = asyncHandler(async (req: Request, res: Response) => {
+  const user = await authService.completeProfile(req.user!._id.toString(), req.body);
+  return sendSuccess(res, user, "Profile completed");
 });
 
 export const uploadAvatar = asyncHandler(async (req: Request, res: Response) => {
@@ -37,18 +58,28 @@ export const uploadAvatar = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const getWallet = asyncHandler(async (req: Request, res: Response) => {
-  const user = await User.findById(req.user!._id).select("walletBalance");
+  const user = await User.findById(req.user!._id).select("walletBalance freeSecondsRemaining");
   const transactions = await Transaction.find({ userId: req.user!._id })
     .sort({ createdAt: -1 })
     .limit(10);
-  return sendSuccess(res, { balance: user?.walletBalance ?? 0, recentTransactions: transactions });
+  return sendSuccess(res, {
+    balance: user?.walletBalance ?? 0,
+    freeSecondsRemaining: user?.freeSecondsRemaining ?? 0,
+    recentTransactions: transactions,
+  });
 });
 
 export const getHistory = asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user!._id;
   const [calls, chats, recharges] = await Promise.all([
-    Call.find({ userId }).sort({ createdAt: -1 }).limit(20).populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
-    Chat.find({ userId }).sort({ updatedAt: -1 }).limit(20).populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
+    Call.find({ userId })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
+    Chat.find({ userId })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
     Recharge.find({ userId }).sort({ createdAt: -1 }).limit(20),
   ]);
   return sendSuccess(res, { calls, chats, recharges });

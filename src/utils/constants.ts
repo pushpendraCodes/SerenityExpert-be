@@ -22,6 +22,8 @@ export const MAX_LIMIT = 100;
 export const MIN_RECHARGE_AMOUNT = 50;   // INR
 export const MAX_RECHARGE_AMOUNT = 10000; // INR
 export const LOW_BALANCE_WARNING_MINUTES = 2; // Warn user when balance can cover only 2 more minutes
+export const FREE_SECONDS_ON_SIGNUP = 300; // 5 free minutes for new users
+export const DEFAULT_STAFF_APPLICATION_FEE = 999; // INR
 
 // ─── Call ──────────────────────────────────────────────────────────────────────
 
@@ -33,7 +35,12 @@ export const MIN_CALL_DURATION_SECONDS = 0;
 
 export const MAX_AVATAR_SIZE = 5 * 1024 * 1024;  // 5MB
 export const MAX_CHAT_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FEED_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+export const MAX_FEED_REEL_SIZE = 100 * 1024 * 1024; // 100MB
+export const MAX_FEED_IMAGES_PER_POST = 4;
+export const MAX_FEED_REEL_DURATION_SEC = 60;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const ALLOWED_REEL_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 

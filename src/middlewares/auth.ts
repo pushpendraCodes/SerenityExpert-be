@@ -34,19 +34,24 @@ export const requireExpert = asyncHandler(async (req: Request, _res: Response, n
 
   const expert = await Expert.findOne({ userId: req.user._id });
   if (!expert) {
-    throw new ForbiddenError("Expert profile required");
+    throw new ForbiddenError("Staff profile required");
   }
 
   req.expert = expert;
   next();
 });
 
+/** Alias — staff portal uses Expert document under the hood */
+export const requireStaff = requireExpert;
+
 export const requireApprovedExpert = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   if (!req.expert?.isApproved) {
-    throw new ForbiddenError("Expert account not approved");
+    throw new ForbiddenError("Staff account not approved");
   }
   next();
 });
+
+export const requireApprovedStaff = requireApprovedExpert;
 
 export const requireAdmin = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   if (!req.user || req.user.role !== UserRole.ADMIN) {

@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import { findExpertByMobile } from "../services/expert.service.js";
-import { AuthError } from "../utils/AppError.js";
 import { sendSuccess, sendCreated } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { normalizePhone } from "../utils/phone.js";
@@ -19,17 +17,15 @@ export const verifyExpertOtp = asyncHandler(async (req: Request, res: Response) 
   return sendCreated(res, {
     user: result.user,
     expert: result.expert,
+    staff: result.expert,
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
-  }, "Expert login successful");
+    hasStaffProfile: result.hasStaffProfile,
+  }, "Staff login successful");
 });
 
 export const sendOtp = asyncHandler(async (req: Request, res: Response) => {
   const phone = normalizePhone(req.body.phone);
-  const expert = await findExpertByMobile(phone);
-  if (expert) {
-    throw new AuthError("This mobile number is registered as an expert. Please use expert login.");
-  }
   const { sendOtp: sendOtpFn } = await import("../services/otp.service.js");
   const otp = await sendOtpFn(phone);
   const isDev = process.env.NODE_ENV !== "production";
@@ -44,6 +40,7 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     isNewUser: result.isNewUser,
+    hasStaffProfile: result.hasStaffProfile,
   }, "Login successful");
 });
 
@@ -55,6 +52,7 @@ export const googleLogin = asyncHandler(async (req: Request, res: Response) => {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
     isNewUser: result.isNewUser,
+    hasStaffProfile: result.hasStaffProfile,
   }, "Login successful");
 });
 

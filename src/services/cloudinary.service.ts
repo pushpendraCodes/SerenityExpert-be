@@ -1,7 +1,65 @@
 import cloudinary, { configureCloudinary } from "../config/cloudinary.js";
 import { ValidationError } from "../utils/AppError.js";
+import {
+  MAX_FEED_IMAGE_SIZE,
+  MAX_FEED_REEL_SIZE,
+  MAX_FEED_REEL_DURATION_SEC,
+} from "../utils/constants.js";
 
 configureCloudinary();
+
+export type FeedUploadKind = "image" | "video";
+
+function buildUploadSignature(
+  type: FeedUploadKind,
+  folder: string
+) {
+  const timestamp = Math.round(Date.now() / 1000);
+  // Only sign params that are sent in the upload form (not resource_type — that is the URL path).
+  const params: Record<string, string | number> = {
+    timestamp,
+    folder,
+  };
+
+  const signature = cloudinary.utils.api_sign_request(
+    params,
+    process.env.CLOUDINARY_API_SECRET!
+  );
+
+  return {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME!,
+    apiKey: process.env.CLOUDINARY_API_KEY!,
+    timestamp,
+    folder,
+    signature,
+    resourceType: (type === "video" ? "video" : "image") as "image" | "video",
+    maxBytes: type === "video" ? MAX_FEED_REEL_SIZE : MAX_FEED_IMAGE_SIZE,
+    maxDurationSec: type === "video" ? MAX_FEED_REEL_DURATION_SEC : undefined,
+  };
+}
+
+export function getFeedUploadSignature(type: FeedUploadKind, userId: string) {
+  const folder =
+    type === "image"
+      ? `expert-consultant/feed/images/${userId}`
+      : `expert-consultant/feed/reels/${userId}`;
+  return buildUploadSignature(type, folder);
+}
+
+export function getStoryUploadSignature(type: FeedUploadKind, userId: string) {
+  const folder = `expert-consultant/stories/${userId}`;
+  return buildUploadSignature(type, folder);
+}
+
+/** Cloudinary video thumbnail URL from a delivery URL / public id */
+export function reelThumbnailUrl(publicId: string): string {
+  return cloudinary.url(publicId, {
+    resource_type: "video",
+    format: "jpg",
+    transformation: [{ width: 720, crop: "limit", quality: "auto" }],
+    secure: true,
+  });
+}
 
 export async function uploadImage(
   buffer: Buffer,

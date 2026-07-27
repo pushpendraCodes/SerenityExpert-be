@@ -135,9 +135,26 @@ export function calculateCallCost(pricePerMinute: number, durationSeconds: numbe
   return Math.ceil(costPerSecond * durationSeconds * 100) / 100;
 }
 
-export function canAffordCall(balance: number, pricePerMinute: number, minSeconds = 60): boolean {
+export function canAffordCall(
+  balance: number,
+  pricePerMinute: number,
+  minSeconds = 60,
+  freeSecondsRemaining = 0
+): boolean {
+  if (freeSecondsRemaining > 0) return true;
   const minCost = calculateCallCost(pricePerMinute, minSeconds);
   return balance >= minCost;
+}
+
+/** Split call duration into free vs paid seconds */
+export function splitFreeAndPaidSeconds(
+  durationSeconds: number,
+  freeSecondsRemaining: number
+): { freeSecondsUsed: number; paidSeconds: number; freeSecondsLeft: number } {
+  const freeSecondsUsed = Math.min(durationSeconds, Math.max(0, freeSecondsRemaining));
+  const paidSeconds = Math.max(0, durationSeconds - freeSecondsUsed);
+  const freeSecondsLeft = Math.max(0, freeSecondsRemaining - freeSecondsUsed);
+  return { freeSecondsUsed, paidSeconds, freeSecondsLeft };
 }
 
 export function minutesRemaining(balance: number, pricePerMinute: number): number {

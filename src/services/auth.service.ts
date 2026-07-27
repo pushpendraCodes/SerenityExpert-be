@@ -1,21 +1,48 @@
 import User from "../models/User.js";
+import Expert from "../models/Expert.js";
 import { verifyOtp } from "./otp.service.js";
-import { assertExpertCanLogin, findExpertByMobile } from "./expert.service.js";
+import { assertExpertCanLogin } from "./expert.service.js";
 import { generateTokenPair, verifyRefreshToken } from "../utils/token.js";
-import { generateDummyAvatar, generateDummyUsername } from "../utils/constants.js";
+import { generateDummyAvatar, generateDummyUsername, FREE_SECONDS_ON_SIGNUP } from "../utils/constants.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/phone.js";
 import { UserRole } from "../types/index.js";
 import { AuthError } from "../utils/AppError.js";
 import type { IUser } from "../models/User.js";
+import type { TokenPayload } from "../types/index.js";
 
 interface AuthResult {
   user: IUser;
   accessToken: string;
   refreshToken: string;
   isNewUser: boolean;
+  hasStaffProfile: boolean;
   expert?: import("../models/Expert.js").IExpert;
 }
 
+async function resolveHasStaffProfile(userId: string): Promise<boolean> {
+  const expert = await Expert.findOne({ userId, isApproved: true }).select("_id");
+  return Boolean(expert);
+}
+
+async function issueTokens(user: IUser, roleOverride?: UserRole): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  hasStaffProfile: boolean;
+}> {
+  const hasStaffProfile = await resolveHasStaffProfile(user._id.toString());
+  const role = roleOverride ?? user.role;
+  const payload: TokenPayload = {
+    userId: user._id.toString(),
+    role,
+    hasStaffProfile,
+  };
+  const tokens = generateTokenPair(payload);
+  user.refreshToken = tokens.refreshToken;
+  await user.save();
+  return { ...tokens, hasStaffProfile };
+}
+
+/** Staff portal OTP — same as expert login; dual-portal friendly */
 export async function sendExpertOtp(mobile: string): Promise<string> {
   const phone = normalizePhone(mobile);
   await assertExpertCanLogin(phone);
@@ -35,22 +62,27 @@ export async function loginExpertWithOtp(mobile: string, otp: string): Promise<A
 
   user.isVerified = true;
   user.lastLoginAt = new Date();
-  user.role = UserRole.EXPERT;
+  // Keep role as USER for dual-portal users; only elevate if already admin stays admin
+  if (user.role !== UserRole.ADMIN) {
+    // Do not flip identity away from user portal — staff access is via Expert link + hasStaffProfile
+  }
   await user.save();
 
-  const tokens = generateTokenPair({ userId: user._id.toString(), role: UserRole.EXPERT });
-  user.refreshToken = tokens.refreshToken;
-  await user.save();
+  const tokens = await issueTokens(user, user.role === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER);
 
-  return { user, expert, ...tokens, isNewUser: false };
+  return {
+    user,
+    expert,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    hasStaffProfile: tokens.hasStaffProfile,
+    isNewUser: false,
+  };
 }
 
 export async function loginWithOtp(phone: string, otp: string): Promise<AuthResult> {
   const normalized = normalizePhone(phone);
-  const expertAccount = await findExpertByMobile(normalized);
-  if (expertAccount) {
-    throw new AuthError("This mobile number is registered as an expert. Please use expert login.");
-  }
+  // Dual portal: expert/staff phones may also use the user app — do not block
 
   await verifyOtp(normalized, otp);
 
@@ -65,6 +97,8 @@ export async function loginWithOtp(phone: string, otp: string): Promise<AuthResu
       avatar: generateDummyAvatar(normalized),
       isVerified: true,
       role: UserRole.USER,
+      profileCompleted: false,
+      freeSecondsRemaining: FREE_SECONDS_ON_SIGNUP,
     });
   } else {
     user.isVerified = true;
@@ -73,11 +107,15 @@ export async function loginWithOtp(phone: string, otp: string): Promise<AuthResu
     await user.save();
   }
 
-  const tokens = generateTokenPair({ userId: user._id.toString(), role: user.role });
-  user.refreshToken = tokens.refreshToken;
-  await user.save();
+  const tokens = await issueTokens(user);
 
-  return { user, ...tokens, isNewUser };
+  return {
+    user,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    hasStaffProfile: tokens.hasStaffProfile,
+    isNewUser,
+  };
 }
 
 export async function loginWithGoogle(idToken: string): Promise<AuthResult> {
@@ -114,20 +152,30 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResult> {
       googleId: googleUser.sub,
       isVerified: true,
       role: UserRole.USER,
+      profileCompleted: false,
+      freeSecondsRemaining: FREE_SECONDS_ON_SIGNUP,
     });
   } else {
     user.lastLoginAt = new Date();
     await user.save();
   }
 
-  const tokens = generateTokenPair({ userId: user._id.toString(), role: user.role });
-  user.refreshToken = tokens.refreshToken;
-  await user.save();
+  const tokens = await issueTokens(user);
 
-  return { user, ...tokens, isNewUser };
+  return {
+    user,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    hasStaffProfile: tokens.hasStaffProfile,
+    isNewUser,
+  };
 }
 
-export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+export async function refreshAccessToken(refreshToken: string): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  hasStaffProfile: boolean;
+}> {
   const decoded = verifyRefreshToken(refreshToken);
   const user = await User.findById(decoded.userId).select("+refreshToken");
 
@@ -135,11 +183,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     throw new AuthError("Invalid refresh token");
   }
 
-  const tokens = generateTokenPair({ userId: user._id.toString(), role: user.role });
-  user.refreshToken = tokens.refreshToken;
-  await user.save();
-
-  return tokens;
+  return issueTokens(user);
 }
 
 export async function logout(userId: string): Promise<void> {
@@ -152,4 +196,30 @@ export async function registerFcmToken(userId: string, token: string): Promise<v
 
 export async function removeFcmToken(userId: string, token: string): Promise<void> {
   await User.findByIdAndUpdate(userId, { $pull: { fcmTokens: token } });
+}
+
+export async function completeProfile(
+  userId: string,
+  data: {
+    realName: string;
+    dob: string;
+    gender: string;
+    country: string;
+    city: string;
+    state: string;
+  }
+): Promise<IUser> {
+  const user = await User.findById(userId);
+  if (!user) throw new AuthError("User not found");
+
+  // Real name + DOB are stored privately; the public `name` stays a dummy handle.
+  user.realName = data.realName.trim();
+  user.dob = new Date(data.dob);
+  user.gender = data.gender as IUser["gender"];
+  user.country = data.country.trim();
+  user.city = data.city.trim();
+  user.state = data.state.trim();
+  user.profileCompleted = true;
+  await user.save();
+  return user;
 }

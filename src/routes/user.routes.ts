@@ -5,6 +5,7 @@ import { validate } from "../middlewares/validate.js";
 import { avatarUpload } from "../middlewares/upload.js";
 import {
   updateProfileSchema,
+  completeProfileSchema,
   fcmTokenSchema,
   paginationSchema,
 } from "../validators/user.validator.js";
@@ -15,6 +16,7 @@ router.use(authenticate, requireUser);
 
 router.get("/me", userController.getMe);
 router.put("/me", validate(updateProfileSchema), userController.updateProfile);
+router.post("/me/complete-profile", validate(completeProfileSchema), userController.completeProfile);
 router.post("/me/avatar", avatarUpload, userController.uploadAvatar);
 router.get("/me/wallet", userController.getWallet);
 router.get("/me/history", userController.getHistory);

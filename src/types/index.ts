@@ -6,6 +6,31 @@ export enum UserRole {
   ADMIN = "admin",
 }
 
+export enum Gender {
+  MALE = "male",
+  FEMALE = "female",
+  OTHER = "other",
+  PREFER_NOT_TO_SAY = "prefer_not_to_say",
+}
+
+export enum JournalVisibility {
+  PUBLIC = "public",
+  PRIVATE = "private",
+}
+
+export enum JournalMediaType {
+  NONE = "none",
+  IMAGE = "image",
+  REEL = "reel",
+}
+
+export enum StaffApplicationStatus {
+  PENDING_PAYMENT = "pending_payment",
+  PENDING_REVIEW = "pending_review",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+}
+
 export enum ExpertStatus {
   ONLINE = "online",
   OFFLINE = "offline",
@@ -69,6 +94,8 @@ export enum NotificationType {
   CALL = "call",
   CHAT = "chat",
   COMMUNITY = "community",
+  JOURNAL = "journal",
+  FOLLOW = "follow",
   PAYMENT = "payment",
   SYSTEM = "system",
   PROMO = "promo",
@@ -124,6 +151,8 @@ export interface BankDetails {
 export interface TokenPayload {
   userId: string;
   role: UserRole;
+  /** True when user has an approved Expert (staff) profile — dual portal */
+  hasStaffProfile?: boolean;
 }
 
 export interface OtpData {

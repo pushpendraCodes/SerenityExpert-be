@@ -10,6 +10,7 @@ export interface ICall extends Document {
   startedAt?: Date;
   endedAt?: Date;
   durationSeconds: number;
+  freeSecondsUsed: number;
   totalCost: number;
   pricePerMinute: number;
   recordingUrl?: string;
@@ -45,6 +46,11 @@ const callSchema = new Schema<ICall>(
     durationSeconds: {
       type: Number,
       default: 0,
+    },
+    freeSecondsUsed: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     totalCost: {
       type: Number,
