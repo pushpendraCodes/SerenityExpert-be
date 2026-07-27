@@ -248,7 +248,12 @@ async function approveExpert(expertId, data) {
         expert.commissionPercent = data.commissionPercent;
     if (data.isApproved) {
         expert.isVerified = true;
-        await User_js_1.default.findByIdAndUpdate(expert.userId, { role: index_js_1.UserRole.EXPERT });
+        // Dual portal: keep User.role as user (or admin); staff access via Expert link
+        const user = await User_js_1.default.findById(expert.userId);
+        if (user && user.role !== index_js_1.UserRole.ADMIN) {
+            user.role = index_js_1.UserRole.USER;
+            await user.save();
+        }
     }
     else {
         expert.isVerified = false;

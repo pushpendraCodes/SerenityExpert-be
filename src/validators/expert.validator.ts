@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ExpertStatus } from "../types/index.js";
+import { ExpertStatus, Gender } from "../types/index.js";
 
 const availabilitySlotSchema = z.object({
   day: z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
@@ -49,7 +49,7 @@ export const browseExpertsSchema = z.object({
   language: z.string().optional(),
   minRating: z.coerce.number().min(0).max(5).optional(),
   status: z.nativeEnum(ExpertStatus).optional(),
-  gender: z.enum(["male", "female", "other"]).optional(),
+  gender: z.nativeEnum(Gender).optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   sort: z.enum(["rating", "price", "experience"]).optional(),

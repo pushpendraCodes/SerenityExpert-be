@@ -10,7 +10,7 @@ import {
 } from "./admin.service.js";
 import { getExpertEarningsSummary, getExpertPayouts } from "./payout.service.js";
 import { paginate } from "../utils/pagination.js";
-import { ExpertStatus, UserRole } from "../types/index.js";
+import { ExpertStatus, UserRole, Gender } from "../types/index.js";
 import { generateDummyAvatar } from "../utils/constants.js";
 import { ConflictError, NotFoundError, ForbiddenError, AuthError } from "../utils/AppError.js";
 import { phoneLookupVariants, normalizePhone } from "../utils/phone.js";
@@ -87,7 +87,7 @@ export async function browseExperts(query: PaginationQuery & {
   language?: string;
   minRating?: number;
   status?: ExpertStatus;
-  gender?: string;
+  gender?: Gender;
   sort?: string;
 }) {
   const filter: Record<string, unknown> = { isApproved: true };

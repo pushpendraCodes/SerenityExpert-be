@@ -18,6 +18,10 @@ const pagination_js_1 = require("../utils/pagination.js");
 const index_js_1 = require("../types/index.js");
 const AppError_js_1 = require("../utils/AppError.js");
 async function getOrCreateChat(userId, expertId) {
+    const expert = await Expert_js_1.default.findOne({ _id: expertId, isApproved: true });
+    if (!expert) {
+        throw new AppError_js_1.NotFoundError("Person");
+    }
     let chat = await Chat_js_1.default.findOne({ userId, expertId });
     if (!chat) {
         chat = await Chat_js_1.default.create({ userId, expertId, status: index_js_1.ChatStatus.ACTIVE });
@@ -34,7 +38,11 @@ async function getUserChats(userId, isExpert, query) {
         query,
         populate: isExpert
             ? { path: "userId", select: "name avatar" }
-            : { path: "expertId", populate: { path: "userId", select: "name avatar" } },
+            : {
+                path: "expertId",
+                select: "userId status pricePerMinute isApproved",
+                populate: { path: "userId", select: "name avatar gender" },
+            },
         sort: { lastMessageAt: -1, updatedAt: -1 },
     });
 }

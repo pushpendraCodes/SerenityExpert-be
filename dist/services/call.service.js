@@ -33,8 +33,10 @@ async function initiateCall(userId, expertId) {
     if (expert.status !== index_js_1.ExpertStatus.ONLINE) {
         throw new AppError_js_1.ConflictError("Expert is not available");
     }
-    const balance = await (0, wallet_service_js_1.getBalance)(userId);
-    if (!(0, wallet_service_js_1.canAffordCall)(balance, expert.pricePerMinute)) {
+    const user = await User_js_1.default.findById(userId).select("walletBalance freeSecondsRemaining");
+    const balance = user?.walletBalance ?? 0;
+    const freeSeconds = user?.freeSecondsRemaining ?? 0;
+    if (!(0, wallet_service_js_1.canAffordCall)(balance, expert.pricePerMinute, 60, freeSeconds)) {
         throw new AppError_js_1.InsufficientBalanceError("Insufficient balance to start a call");
     }
     const existingCall = await Call_js_1.default.findOne({
@@ -113,6 +115,8 @@ async function acceptCall(callId, expertUserId) {
     await call.save();
     const channelName = call.agoraChannelName;
     const tokens = (0, agora_service_js_1.buildCallTokens)(channelName, call.userId.toString(), expertUserId);
+    const callerUser = await User_js_1.default.findById(call.userId).select("freeSecondsRemaining");
+    const freeAtStart = callerUser?.freeSecondsRemaining ?? 0;
     await (0, cache_service_js_1.cacheSet)(cache_service_js_1.CacheKeys.activeCall(callId), {
         callId,
         userId: call.userId.toString(),
@@ -122,6 +126,7 @@ async function acceptCall(callId, expertUserId) {
         startedAt: call.startedAt.toISOString(),
         elapsedSeconds: 0,
         totalCost: 0,
+        freeSecondsRemainingAtStart: freeAtStart,
         updatedAt: new Date().toISOString(),
     });
     startBillingTimer(callId);
@@ -160,11 +165,16 @@ function startBillingTimer(callId) {
                 return;
             }
             state.elapsedSeconds += 1;
-            state.totalCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, state.elapsedSeconds);
+            const freeAtStart = state.freeSecondsRemainingAtStart ?? 0;
+            const { paidSeconds } = (0, wallet_service_js_1.splitFreeAndPaidSeconds)(state.elapsedSeconds, freeAtStart);
+            state.totalCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, paidSeconds);
             const walletBalance = await (0, wallet_service_js_1.getBalance)(state.userId);
-            // Wallet is only debited when the call ends — remaining = wallet minus accrued cost
+            // Wallet is only debited when the call ends — remaining = wallet minus accrued paid cost
             const remainingBalance = Math.max(0, Math.round((walletBalance - state.totalCost) * 100) / 100);
-            const minsLeft = (0, wallet_service_js_1.minutesRemaining)(remainingBalance, state.pricePerMinute);
+            const freeLeft = Math.max(0, freeAtStart - state.elapsedSeconds);
+            const minsLeft = freeLeft > 0
+                ? freeLeft / 60 + (0, wallet_service_js_1.minutesRemaining)(remainingBalance, state.pricePerMinute)
+                : (0, wallet_service_js_1.minutesRemaining)(remainingBalance, state.pricePerMinute);
             const costPerSecond = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, 1);
             (0, socket_js_1.emitToUser)(state.userId, "call:timer", {
                 callId,
@@ -178,7 +188,7 @@ function startBillingTimer(callId) {
                 cost: state.totalCost,
                 balance: remainingBalance,
             });
-            if (minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
+            if (freeLeft <= 0 && minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
                 console.log(`⚠️ Low balance warning for call ${callId}: balance=${remainingBalance}, minsLeft=${minsLeft}`);
                 (0, socket_js_1.emitToUser)(state.userId, "call:low-balance", {
                     callId,
@@ -186,8 +196,8 @@ function startBillingTimer(callId) {
                     minutesRemaining: minsLeft,
                 });
             }
-            // Auto-cut once remaining balance can't cover another second
-            if (remainingBalance < costPerSecond) {
+            // Auto-cut once free seconds exhausted and remaining balance can't cover another second
+            if (freeLeft <= 0 && remainingBalance < costPerSecond) {
                 console.log(`✂️ Auto-ending call ${callId} for low balance: balance=${remainingBalance}, costPerSecond=${costPerSecond}`);
                 await endCall(callId, state.userId, "low_balance");
                 return;
@@ -220,23 +230,31 @@ async function endCall(callId, endedByUserId, reason = "completed") {
     await (0, cache_service_js_1.cacheDel)(cache_service_js_1.CacheKeys.activeCall(callId));
     const durationSeconds = state?.elapsedSeconds ??
         (call.startedAt ? Math.floor((Date.now() - call.startedAt.getTime()) / 1000) : 0);
-    const totalCost = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, durationSeconds);
-    if (totalCost > 0 && call.status === index_js_1.CallStatus.ACTIVE) {
-        // Per-second ceil rounding can overshoot the wallet balance by a fraction of a
-        // cent right at the auto-cut boundary — clamp so ending a call never fails.
-        const walletBalance = await (0, wallet_service_js_1.getBalance)(call.userId.toString());
-        const debitAmount = Math.min(totalCost, walletBalance);
-        try {
-            if (debitAmount > 0) {
-                await (0, wallet_service_js_1.debitWallet)(call.userId.toString(), debitAmount, `Call with expert (${durationSeconds}s)`, {
-                    referenceId: callId,
-                    referenceType: "call",
-                });
+    const caller = await User_js_1.default.findById(call.userId).select("freeSecondsRemaining walletBalance");
+    const freePool = state?.freeSecondsRemainingAtStart !== undefined
+        ? state.freeSecondsRemainingAtStart
+        : caller?.freeSecondsRemaining ?? 0;
+    const { freeSecondsUsed, paidSeconds, freeSecondsLeft } = (0, wallet_service_js_1.splitFreeAndPaidSeconds)(durationSeconds, freePool);
+    const totalCost = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, paidSeconds);
+    if (caller && freeSecondsUsed > 0) {
+        caller.freeSecondsRemaining = freeSecondsLeft;
+        await caller.save();
+    }
+    if (call.status === index_js_1.CallStatus.ACTIVE) {
+        if (totalCost > 0) {
+            const walletBalance = await (0, wallet_service_js_1.getBalance)(call.userId.toString());
+            const debitAmount = Math.min(totalCost, walletBalance);
+            try {
+                if (debitAmount > 0) {
+                    await (0, wallet_service_js_1.debitWallet)(call.userId.toString(), debitAmount, `Call with staff (${durationSeconds}s, ${freeSecondsUsed}s free)`, {
+                        referenceId: callId,
+                        referenceType: "call",
+                    });
+                }
             }
-        }
-        catch (err) {
-            // Never let a billing hiccup leave the call stuck ACTIVE — log and still complete it.
-            console.error(`Failed to debit wallet for call ${callId}:`, err);
+            catch (err) {
+                console.error(`Failed to debit wallet for call ${callId}:`, err);
+            }
         }
         const expert = await Expert_js_1.default.findById(call.expertId);
         if (expert) {
@@ -256,7 +274,7 @@ async function endCall(callId, endedByUserId, reason = "completed") {
             expert.status = index_js_1.ExpertStatus.ONLINE;
             await expert.save();
         }
-        call.status = reason === "expert_ended" || reason === "user_ended" ? index_js_1.CallStatus.MISSED : index_js_1.CallStatus.MISSED;
+        call.status = index_js_1.CallStatus.MISSED;
         if (reason === "completed")
             reason = "user_ended";
     }
@@ -270,6 +288,7 @@ async function endCall(callId, endedByUserId, reason = "completed") {
     }
     call.endedAt = new Date();
     call.durationSeconds = durationSeconds;
+    call.freeSecondsUsed = freeSecondsUsed;
     call.totalCost = totalCost;
     call.endReason = reason;
     await call.save();

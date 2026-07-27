@@ -43,6 +43,7 @@ const router = (0, express_1.Router)();
 router.use(auth_js_1.authenticate, auth_js_1.requireUser);
 router.get("/me", userController.getMe);
 router.put("/me", (0, validate_js_1.validate)(user_validator_js_1.updateProfileSchema), userController.updateProfile);
+router.post("/me/complete-profile", (0, validate_js_1.validate)(user_validator_js_1.completeProfileSchema), userController.completeProfile);
 router.post("/me/avatar", upload_js_1.avatarUpload, userController.uploadAvatar);
 router.get("/me/wallet", userController.getWallet);
 router.get("/me/history", userController.getHistory);

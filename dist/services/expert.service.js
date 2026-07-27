@@ -84,6 +84,10 @@ async function browseExperts(query) {
         filter.rating = { $gte: query.minRating };
     if (query.status)
         filter.status = query.status;
+    if (query.gender) {
+        const genderUsers = await User_js_1.default.find({ gender: query.gender }).select("_id");
+        filter.userId = { $in: genderUsers.map((u) => u._id) };
+    }
     if (query.search) {
         const term = query.search.trim();
         if (term) {
@@ -104,20 +108,24 @@ async function browseExperts(query) {
         sort = { pricePerMinute: query.order === "asc" ? 1 : -1 };
     if (query.sort === "experience")
         sort = { experience: -1 };
-    return (0, pagination_js_1.paginate)({
+    const result = await (0, pagination_js_1.paginate)({
         model: Expert_js_1.default,
         filter,
         query,
         populate: [
-            { path: "userId", select: "name avatar" },
+            { path: "userId", select: "name avatar gender city state country" },
             { path: "categories", select: "name slug icon" },
         ],
         sort,
     });
+    // Online (staff-panel status) first, then busy, then offline — within the page.
+    const rank = (status) => status === index_js_2.ExpertStatus.ONLINE ? 0 : status === index_js_2.ExpertStatus.BUSY ? 1 : 2;
+    result.data = [...result.data].sort((a, b) => rank(a.status) - rank(b.status));
+    return result;
 }
 async function getExpertProfile(expertId) {
     const expert = await Expert_js_1.default.findOne({ _id: expertId, isApproved: true })
-        .populate("userId", "name avatar")
+        .populate("userId", "name avatar gender city state country")
         .populate("categories", "name slug icon");
     if (!expert)
         throw new AppError_js_1.NotFoundError("Expert");

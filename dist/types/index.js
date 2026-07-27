@@ -1,13 +1,38 @@
 "use strict";
 // ─── Enums ────────────────────────────────────────────────────────────────────
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DiscountType = exports.NotificationType = exports.ReportStatus = exports.PayoutStatus = exports.RechargeStatus = exports.TransactionStatus = exports.TransactionType = exports.MessageType = exports.ChatStatus = exports.CallStatus = exports.ExpertStatus = exports.UserRole = void 0;
+exports.DiscountType = exports.NotificationType = exports.ReportStatus = exports.PayoutStatus = exports.RechargeStatus = exports.TransactionStatus = exports.TransactionType = exports.MessageType = exports.ChatStatus = exports.CallStatus = exports.ExpertStatus = exports.StaffApplicationStatus = exports.JournalMediaType = exports.JournalVisibility = exports.Gender = exports.UserRole = void 0;
 var UserRole;
 (function (UserRole) {
     UserRole["USER"] = "user";
     UserRole["EXPERT"] = "expert";
     UserRole["ADMIN"] = "admin";
 })(UserRole || (exports.UserRole = UserRole = {}));
+var Gender;
+(function (Gender) {
+    Gender["MALE"] = "male";
+    Gender["FEMALE"] = "female";
+    Gender["OTHER"] = "other";
+    Gender["PREFER_NOT_TO_SAY"] = "prefer_not_to_say";
+})(Gender || (exports.Gender = Gender = {}));
+var JournalVisibility;
+(function (JournalVisibility) {
+    JournalVisibility["PUBLIC"] = "public";
+    JournalVisibility["PRIVATE"] = "private";
+})(JournalVisibility || (exports.JournalVisibility = JournalVisibility = {}));
+var JournalMediaType;
+(function (JournalMediaType) {
+    JournalMediaType["NONE"] = "none";
+    JournalMediaType["IMAGE"] = "image";
+    JournalMediaType["REEL"] = "reel";
+})(JournalMediaType || (exports.JournalMediaType = JournalMediaType = {}));
+var StaffApplicationStatus;
+(function (StaffApplicationStatus) {
+    StaffApplicationStatus["PENDING_PAYMENT"] = "pending_payment";
+    StaffApplicationStatus["PENDING_REVIEW"] = "pending_review";
+    StaffApplicationStatus["APPROVED"] = "approved";
+    StaffApplicationStatus["REJECTED"] = "rejected";
+})(StaffApplicationStatus || (exports.StaffApplicationStatus = StaffApplicationStatus = {}));
 var ExpertStatus;
 (function (ExpertStatus) {
     ExpertStatus["ONLINE"] = "online";
@@ -72,6 +97,8 @@ var NotificationType;
     NotificationType["CALL"] = "call";
     NotificationType["CHAT"] = "chat";
     NotificationType["COMMUNITY"] = "community";
+    NotificationType["JOURNAL"] = "journal";
+    NotificationType["FOLLOW"] = "follow";
     NotificationType["PAYMENT"] = "payment";
     NotificationType["SYSTEM"] = "system";
     NotificationType["PROMO"] = "promo";

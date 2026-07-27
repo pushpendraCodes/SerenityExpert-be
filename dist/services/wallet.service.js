@@ -9,6 +9,7 @@ exports.debitWallet = debitWallet;
 exports.adjustWallet = adjustWallet;
 exports.calculateCallCost = calculateCallCost;
 exports.canAffordCall = canAffordCall;
+exports.splitFreeAndPaidSeconds = splitFreeAndPaidSeconds;
 exports.minutesRemaining = minutesRemaining;
 const mongoose_1 = __importDefault(require("mongoose"));
 const User_js_1 = __importDefault(require("../models/User.js"));
@@ -110,9 +111,18 @@ function calculateCallCost(pricePerMinute, durationSeconds) {
     const costPerSecond = pricePerMinute / 60;
     return Math.ceil(costPerSecond * durationSeconds * 100) / 100;
 }
-function canAffordCall(balance, pricePerMinute, minSeconds = 60) {
+function canAffordCall(balance, pricePerMinute, minSeconds = 60, freeSecondsRemaining = 0) {
+    if (freeSecondsRemaining > 0)
+        return true;
     const minCost = calculateCallCost(pricePerMinute, minSeconds);
     return balance >= minCost;
+}
+/** Split call duration into free vs paid seconds */
+function splitFreeAndPaidSeconds(durationSeconds, freeSecondsRemaining) {
+    const freeSecondsUsed = Math.min(durationSeconds, Math.max(0, freeSecondsRemaining));
+    const paidSeconds = Math.max(0, durationSeconds - freeSecondsUsed);
+    const freeSecondsLeft = Math.max(0, freeSecondsRemaining - freeSecondsUsed);
+    return { freeSecondsUsed, paidSeconds, freeSecondsLeft };
 }
 function minutesRemaining(balance, pricePerMinute) {
     if (pricePerMinute <= 0)

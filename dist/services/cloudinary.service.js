@@ -33,6 +33,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getFeedUploadSignature = getFeedUploadSignature;
+exports.getStoryUploadSignature = getStoryUploadSignature;
+exports.reelThumbnailUrl = reelThumbnailUrl;
 exports.uploadImage = uploadImage;
 exports.uploadFromUrl = uploadFromUrl;
 exports.uploadRecording = uploadRecording;
@@ -41,7 +44,46 @@ exports.deleteAsset = deleteAsset;
 exports.deleteAssetByUrl = deleteAssetByUrl;
 const cloudinary_js_1 = __importStar(require("../config/cloudinary.js"));
 const AppError_js_1 = require("../utils/AppError.js");
+const constants_js_1 = require("../utils/constants.js");
 (0, cloudinary_js_1.configureCloudinary)();
+function buildUploadSignature(type, folder) {
+    const timestamp = Math.round(Date.now() / 1000);
+    // Only sign params that are sent in the upload form (not resource_type — that is the URL path).
+    const params = {
+        timestamp,
+        folder,
+    };
+    const signature = cloudinary_js_1.default.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET);
+    return {
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        apiKey: process.env.CLOUDINARY_API_KEY,
+        timestamp,
+        folder,
+        signature,
+        resourceType: (type === "video" ? "video" : "image"),
+        maxBytes: type === "video" ? constants_js_1.MAX_FEED_REEL_SIZE : constants_js_1.MAX_FEED_IMAGE_SIZE,
+        maxDurationSec: type === "video" ? constants_js_1.MAX_FEED_REEL_DURATION_SEC : undefined,
+    };
+}
+function getFeedUploadSignature(type, userId) {
+    const folder = type === "image"
+        ? `expert-consultant/feed/images/${userId}`
+        : `expert-consultant/feed/reels/${userId}`;
+    return buildUploadSignature(type, folder);
+}
+function getStoryUploadSignature(type, userId) {
+    const folder = `expert-consultant/stories/${userId}`;
+    return buildUploadSignature(type, folder);
+}
+/** Cloudinary video thumbnail URL from a delivery URL / public id */
+function reelThumbnailUrl(publicId) {
+    return cloudinary_js_1.default.url(publicId, {
+        resource_type: "video",
+        format: "jpg",
+        transformation: [{ width: 720, crop: "limit", quality: "auto" }],
+        secure: true,
+    });
+}
 async function uploadImage(buffer, folder, filename) {
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary_js_1.default.uploader.upload_stream({

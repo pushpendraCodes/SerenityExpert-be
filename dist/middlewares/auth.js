@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.optionalAuth = exports.requireAdmin = exports.requireApprovedExpert = exports.requireExpert = exports.requireUser = exports.authenticate = void 0;
+exports.optionalAuth = exports.requireAdmin = exports.requireApprovedStaff = exports.requireApprovedExpert = exports.requireStaff = exports.requireExpert = exports.requireUser = exports.authenticate = void 0;
 const User_js_1 = __importDefault(require("../models/User.js"));
 const Expert_js_1 = __importDefault(require("../models/Expert.js"));
 const token_js_1 = require("../utils/token.js");
@@ -34,17 +34,20 @@ exports.requireExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, _res, ne
         throw new AppError_js_1.AuthError();
     const expert = await Expert_js_1.default.findOne({ userId: req.user._id });
     if (!expert) {
-        throw new AppError_js_1.ForbiddenError("Expert profile required");
+        throw new AppError_js_1.ForbiddenError("Staff profile required");
     }
     req.expert = expert;
     next();
 });
+/** Alias — staff portal uses Expert document under the hood */
+exports.requireStaff = exports.requireExpert;
 exports.requireApprovedExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, _res, next) => {
     if (!req.expert?.isApproved) {
-        throw new AppError_js_1.ForbiddenError("Expert account not approved");
+        throw new AppError_js_1.ForbiddenError("Staff account not approved");
     }
     next();
 });
+exports.requireApprovedStaff = exports.requireApprovedExpert;
 exports.requireAdmin = (0, asyncHandler_js_1.asyncHandler)(async (req, _res, next) => {
     if (!req.user || req.user.role !== index_js_1.UserRole.ADMIN) {
         throw new AppError_js_1.ForbiddenError("Admin access required");

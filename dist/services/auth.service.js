@@ -11,7 +11,9 @@ exports.refreshAccessToken = refreshAccessToken;
 exports.logout = logout;
 exports.registerFcmToken = registerFcmToken;
 exports.removeFcmToken = removeFcmToken;
+exports.completeProfile = completeProfile;
 const User_js_1 = __importDefault(require("../models/User.js"));
+const Expert_js_1 = __importDefault(require("../models/Expert.js"));
 const otp_service_js_1 = require("./otp.service.js");
 const expert_service_js_1 = require("./expert.service.js");
 const token_js_1 = require("../utils/token.js");
@@ -19,6 +21,24 @@ const constants_js_1 = require("../utils/constants.js");
 const phone_js_1 = require("../utils/phone.js");
 const index_js_1 = require("../types/index.js");
 const AppError_js_1 = require("../utils/AppError.js");
+async function resolveHasStaffProfile(userId) {
+    const expert = await Expert_js_1.default.findOne({ userId, isApproved: true }).select("_id");
+    return Boolean(expert);
+}
+async function issueTokens(user, roleOverride) {
+    const hasStaffProfile = await resolveHasStaffProfile(user._id.toString());
+    const role = roleOverride ?? user.role;
+    const payload = {
+        userId: user._id.toString(),
+        role,
+        hasStaffProfile,
+    };
+    const tokens = (0, token_js_1.generateTokenPair)(payload);
+    user.refreshToken = tokens.refreshToken;
+    await user.save();
+    return { ...tokens, hasStaffProfile };
+}
+/** Staff portal OTP — same as expert login; dual-portal friendly */
 async function sendExpertOtp(mobile) {
     const phone = (0, phone_js_1.normalizePhone)(mobile);
     await (0, expert_service_js_1.assertExpertCanLogin)(phone);
@@ -35,19 +55,24 @@ async function loginExpertWithOtp(mobile, otp) {
     }
     user.isVerified = true;
     user.lastLoginAt = new Date();
-    user.role = index_js_1.UserRole.EXPERT;
+    // Keep role as USER for dual-portal users; only elevate if already admin stays admin
+    if (user.role !== index_js_1.UserRole.ADMIN) {
+        // Do not flip identity away from user portal — staff access is via Expert link + hasStaffProfile
+    }
     await user.save();
-    const tokens = (0, token_js_1.generateTokenPair)({ userId: user._id.toString(), role: index_js_1.UserRole.EXPERT });
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-    return { user, expert, ...tokens, isNewUser: false };
+    const tokens = await issueTokens(user, user.role === index_js_1.UserRole.ADMIN ? index_js_1.UserRole.ADMIN : index_js_1.UserRole.USER);
+    return {
+        user,
+        expert,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        hasStaffProfile: tokens.hasStaffProfile,
+        isNewUser: false,
+    };
 }
 async function loginWithOtp(phone, otp) {
     const normalized = (0, phone_js_1.normalizePhone)(phone);
-    const expertAccount = await (0, expert_service_js_1.findExpertByMobile)(normalized);
-    if (expertAccount) {
-        throw new AppError_js_1.AuthError("This mobile number is registered as an expert. Please use expert login.");
-    }
+    // Dual portal: expert/staff phones may also use the user app — do not block
     await (0, otp_service_js_1.verifyOtp)(normalized, otp);
     let user = await User_js_1.default.findOne({ phone: { $in: (0, phone_js_1.phoneLookupVariants)(normalized) } });
     let isNewUser = false;
@@ -59,6 +84,8 @@ async function loginWithOtp(phone, otp) {
             avatar: (0, constants_js_1.generateDummyAvatar)(normalized),
             isVerified: true,
             role: index_js_1.UserRole.USER,
+            profileCompleted: false,
+            freeSecondsRemaining: constants_js_1.FREE_SECONDS_ON_SIGNUP,
         });
     }
     else {
@@ -68,10 +95,14 @@ async function loginWithOtp(phone, otp) {
             user.phone = normalized;
         await user.save();
     }
-    const tokens = (0, token_js_1.generateTokenPair)({ userId: user._id.toString(), role: user.role });
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-    return { user, ...tokens, isNewUser };
+    const tokens = await issueTokens(user);
+    return {
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        hasStaffProfile: tokens.hasStaffProfile,
+        isNewUser,
+    };
 }
 async function loginWithGoogle(idToken) {
     const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
@@ -98,16 +129,22 @@ async function loginWithGoogle(idToken) {
             googleId: googleUser.sub,
             isVerified: true,
             role: index_js_1.UserRole.USER,
+            profileCompleted: false,
+            freeSecondsRemaining: constants_js_1.FREE_SECONDS_ON_SIGNUP,
         });
     }
     else {
         user.lastLoginAt = new Date();
         await user.save();
     }
-    const tokens = (0, token_js_1.generateTokenPair)({ userId: user._id.toString(), role: user.role });
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-    return { user, ...tokens, isNewUser };
+    const tokens = await issueTokens(user);
+    return {
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        hasStaffProfile: tokens.hasStaffProfile,
+        isNewUser,
+    };
 }
 async function refreshAccessToken(refreshToken) {
     const decoded = (0, token_js_1.verifyRefreshToken)(refreshToken);
@@ -115,10 +152,7 @@ async function refreshAccessToken(refreshToken) {
     if (!user || user.refreshToken !== refreshToken || user.isBlocked) {
         throw new AppError_js_1.AuthError("Invalid refresh token");
     }
-    const tokens = (0, token_js_1.generateTokenPair)({ userId: user._id.toString(), role: user.role });
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-    return tokens;
+    return issueTokens(user);
 }
 async function logout(userId) {
     await User_js_1.default.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
@@ -128,5 +162,20 @@ async function registerFcmToken(userId, token) {
 }
 async function removeFcmToken(userId, token) {
     await User_js_1.default.findByIdAndUpdate(userId, { $pull: { fcmTokens: token } });
+}
+async function completeProfile(userId, data) {
+    const user = await User_js_1.default.findById(userId);
+    if (!user)
+        throw new AppError_js_1.AuthError("User not found");
+    // Real name + DOB are stored privately; the public `name` stays a dummy handle.
+    user.realName = data.realName.trim();
+    user.dob = new Date(data.dob);
+    user.gender = data.gender;
+    user.country = data.country.trim();
+    user.city = data.city.trim();
+    user.state = data.state.trim();
+    user.profileCompleted = true;
+    await user.save();
+    return user;
 }
 //# sourceMappingURL=auth.service.js.map

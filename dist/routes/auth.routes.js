@@ -44,6 +44,9 @@ router.post("/send-otp", rateLimiter_js_1.otpLimiter, (0, validate_js_1.validate
 router.post("/verify-otp", rateLimiter_js_1.authLimiter, (0, validate_js_1.validate)(auth_validator_js_1.verifyOtpSchema), authController.verifyOtp);
 router.post("/expert/send-otp", rateLimiter_js_1.otpLimiter, (0, validate_js_1.validate)(auth_validator_js_1.sendOtpSchema), authController.sendExpertOtp);
 router.post("/expert/verify-otp", rateLimiter_js_1.authLimiter, (0, validate_js_1.validate)(auth_validator_js_1.verifyOtpSchema), authController.verifyExpertOtp);
+/** Staff aliases (same handlers as expert) */
+router.post("/staff/send-otp", rateLimiter_js_1.otpLimiter, (0, validate_js_1.validate)(auth_validator_js_1.sendOtpSchema), authController.sendExpertOtp);
+router.post("/staff/verify-otp", rateLimiter_js_1.authLimiter, (0, validate_js_1.validate)(auth_validator_js_1.verifyOtpSchema), authController.verifyExpertOtp);
 router.post("/google", rateLimiter_js_1.authLimiter, (0, validate_js_1.validate)(auth_validator_js_1.googleLoginSchema), authController.googleLogin);
 router.post("/refresh", (0, validate_js_1.validate)(auth_validator_js_1.refreshTokenSchema), authController.refreshToken);
 router.post("/logout", auth_js_1.authenticate, auth_js_1.requireUser, authController.logout);

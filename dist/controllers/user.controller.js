@@ -36,8 +36,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getTransactions = exports.registerFcmToken = exports.markNotificationRead = exports.getNotifications = exports.getHistory = exports.getWallet = exports.uploadAvatar = exports.updateProfile = exports.getMe = void 0;
+exports.getTransactions = exports.registerFcmToken = exports.markNotificationRead = exports.getNotifications = exports.getHistory = exports.getWallet = exports.uploadAvatar = exports.completeProfile = exports.updateProfile = exports.getMe = void 0;
 const User_js_1 = __importDefault(require("../models/User.js"));
+const Expert_js_1 = __importDefault(require("../models/Expert.js"));
 const Transaction_js_1 = __importDefault(require("../models/Transaction.js"));
 const Call_js_1 = __importDefault(require("../models/Call.js"));
 const Recharge_js_1 = __importDefault(require("../models/Recharge.js"));
@@ -50,13 +51,39 @@ const asyncHandler_js_1 = require("../utils/asyncHandler.js");
 const params_js_1 = require("../utils/params.js");
 const pagination_js_1 = require("../utils/pagination.js");
 exports.getMe = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const user = await User_js_1.default.findById(req.user._id);
-    return (0, response_js_1.sendSuccess)(res, user);
+    // realName + dob are select:false (private) — explicitly include them for the owner only.
+    const user = await User_js_1.default.findById(req.user._id).select("+realName +dob");
+    const staff = await Expert_js_1.default.findOne({ userId: req.user._id, isApproved: true }).select("_id status isApproved pricePerMinute");
+    return (0, response_js_1.sendSuccess)(res, {
+        ...user?.toJSON(),
+        hasStaffProfile: Boolean(staff),
+        staffProfile: staff || undefined,
+    });
 });
 exports.updateProfile = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const { name, email } = req.body;
-    const user = await User_js_1.default.findByIdAndUpdate(req.user._id, { ...(name && { name }), ...(email && { email }) }, { new: true, runValidators: true });
+    const { name, email, gender, country, city, state } = req.body;
+    const updates = {};
+    if (name)
+        updates.name = name;
+    if (email)
+        updates.email = email;
+    if (gender)
+        updates.gender = gender;
+    if (country)
+        updates.country = country;
+    if (city)
+        updates.city = city;
+    if (state)
+        updates.state = state;
+    const user = await User_js_1.default.findByIdAndUpdate(req.user._id, updates, {
+        new: true,
+        runValidators: true,
+    });
     return (0, response_js_1.sendSuccess)(res, user, "Profile updated");
+});
+exports.completeProfile = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const user = await authService.completeProfile(req.user._id.toString(), req.body);
+    return (0, response_js_1.sendSuccess)(res, user, "Profile completed");
 });
 exports.uploadAvatar = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     if (!req.file) {
@@ -67,17 +94,27 @@ exports.uploadAvatar = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     return (0, response_js_1.sendSuccess)(res, user, "Avatar updated");
 });
 exports.getWallet = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const user = await User_js_1.default.findById(req.user._id).select("walletBalance");
+    const user = await User_js_1.default.findById(req.user._id).select("walletBalance freeSecondsRemaining");
     const transactions = await Transaction_js_1.default.find({ userId: req.user._id })
         .sort({ createdAt: -1 })
         .limit(10);
-    return (0, response_js_1.sendSuccess)(res, { balance: user?.walletBalance ?? 0, recentTransactions: transactions });
+    return (0, response_js_1.sendSuccess)(res, {
+        balance: user?.walletBalance ?? 0,
+        freeSecondsRemaining: user?.freeSecondsRemaining ?? 0,
+        recentTransactions: transactions,
+    });
 });
 exports.getHistory = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const userId = req.user._id;
     const [calls, chats, recharges] = await Promise.all([
-        Call_js_1.default.find({ userId }).sort({ createdAt: -1 }).limit(20).populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
-        Chat_js_1.default.find({ userId }).sort({ updatedAt: -1 }).limit(20).populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
+        Call_js_1.default.find({ userId })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
+        Chat_js_1.default.find({ userId })
+            .sort({ updatedAt: -1 })
+            .limit(20)
+            .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } }),
         Recharge_js_1.default.find({ userId }).sort({ createdAt: -1 }).limit(20),
     ]);
     return (0, response_js_1.sendSuccess)(res, { calls, chats, recharges });

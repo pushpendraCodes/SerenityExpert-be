@@ -35,8 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logout = exports.refreshToken = exports.googleLogin = exports.verifyOtp = exports.sendOtp = exports.verifyExpertOtp = exports.sendExpertOtp = void 0;
 const authService = __importStar(require("../services/auth.service.js"));
-const expert_service_js_1 = require("../services/expert.service.js");
-const AppError_js_1 = require("../utils/AppError.js");
 const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
 const phone_js_1 = require("../utils/phone.js");
@@ -52,16 +50,14 @@ exports.verifyExpertOtp = (0, asyncHandler_js_1.asyncHandler)(async (req, res) =
     return (0, response_js_1.sendCreated)(res, {
         user: result.user,
         expert: result.expert,
+        staff: result.expert,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
-    }, "Expert login successful");
+        hasStaffProfile: result.hasStaffProfile,
+    }, "Staff login successful");
 });
 exports.sendOtp = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const phone = (0, phone_js_1.normalizePhone)(req.body.phone);
-    const expert = await (0, expert_service_js_1.findExpertByMobile)(phone);
-    if (expert) {
-        throw new AppError_js_1.AuthError("This mobile number is registered as an expert. Please use expert login.");
-    }
     const { sendOtp: sendOtpFn } = await import("../services/otp.service.js");
     const otp = await sendOtpFn(phone);
     const isDev = process.env.NODE_ENV !== "production";
@@ -75,6 +71,7 @@ exports.verifyOtp = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         isNewUser: result.isNewUser,
+        hasStaffProfile: result.hasStaffProfile,
     }, "Login successful");
 });
 exports.googleLogin = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
@@ -85,6 +82,7 @@ exports.googleLogin = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         isNewUser: result.isNewUser,
+        hasStaffProfile: result.hasStaffProfile,
     }, "Login successful");
 });
 exports.refreshToken = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {

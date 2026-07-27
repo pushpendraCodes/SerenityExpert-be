@@ -42,6 +42,16 @@ const userSchema = new mongoose_1.Schema({
         trim: true,
         maxlength: 100,
     },
+    realName: {
+        type: String,
+        trim: true,
+        maxlength: 100,
+        select: false,
+    },
+    dob: {
+        type: Date,
+        select: false,
+    },
     phone: {
         type: String,
         required: true,
@@ -67,6 +77,34 @@ const userSchema = new mongoose_1.Schema({
         type: String,
         enum: Object.values(index_js_1.UserRole),
         default: index_js_1.UserRole.USER,
+    },
+    gender: {
+        type: String,
+        enum: Object.values(index_js_1.Gender),
+    },
+    country: {
+        type: String,
+        trim: true,
+        maxlength: 100,
+    },
+    city: {
+        type: String,
+        trim: true,
+        maxlength: 100,
+    },
+    state: {
+        type: String,
+        trim: true,
+        maxlength: 100,
+    },
+    profileCompleted: {
+        type: Boolean,
+        default: false,
+    },
+    freeSecondsRemaining: {
+        type: Number,
+        default: 300,
+        min: 0,
     },
     isVerified: {
         type: Boolean,
@@ -102,7 +140,6 @@ const userSchema = new mongoose_1.Schema({
         },
     },
 });
-// Indexes
 userSchema.index({ email: 1 }, { sparse: true });
 userSchema.index({ googleId: 1 }, { sparse: true });
 userSchema.index({ role: 1 });

@@ -60,6 +60,11 @@ const callSchema = new mongoose_1.Schema({
         type: Number,
         default: 0,
     },
+    freeSecondsUsed: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
     totalCost: {
         type: Number,
         default: 0,

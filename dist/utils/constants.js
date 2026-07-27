@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NotificationType = exports.ReportStatus = exports.PayoutStatus = exports.RechargeStatus = exports.TransactionType = exports.ChatStatus = exports.CallStatus = exports.ExpertStatus = exports.UserRole = exports.DUMMY_AVATARS = exports.DEFAULT_COMMISSION_PERCENT = exports.NOTIFICATION_TTL_DAYS = exports.OTP_RATE_LIMIT_MAX = exports.RATE_LIMIT_MAX_REQUESTS = exports.RATE_LIMIT_WINDOW_MS = exports.ALLOWED_IMAGE_TYPES = exports.MAX_CHAT_IMAGE_SIZE = exports.MAX_AVATAR_SIZE = exports.MIN_CALL_DURATION_SECONDS = exports.BILLING_INTERVAL_MS = exports.CALL_RING_TIMEOUT_SECONDS = exports.LOW_BALANCE_WARNING_MINUTES = exports.MAX_RECHARGE_AMOUNT = exports.MIN_RECHARGE_AMOUNT = exports.MAX_LIMIT = exports.DEFAULT_LIMIT = exports.DEFAULT_PAGE = exports.OTP_RESEND_COOLDOWN_SECONDS = exports.OTP_MAX_ATTEMPTS = exports.OTP_EXPIRY_MINUTES = exports.OTP_LENGTH = exports.APP_NAME = void 0;
+exports.NotificationType = exports.ReportStatus = exports.PayoutStatus = exports.RechargeStatus = exports.TransactionType = exports.ChatStatus = exports.CallStatus = exports.ExpertStatus = exports.UserRole = exports.DUMMY_AVATARS = exports.DEFAULT_COMMISSION_PERCENT = exports.NOTIFICATION_TTL_DAYS = exports.OTP_RATE_LIMIT_MAX = exports.RATE_LIMIT_MAX_REQUESTS = exports.RATE_LIMIT_WINDOW_MS = exports.ALLOWED_REEL_TYPES = exports.ALLOWED_IMAGE_TYPES = exports.MAX_FEED_REEL_DURATION_SEC = exports.MAX_FEED_IMAGES_PER_POST = exports.MAX_FEED_REEL_SIZE = exports.MAX_FEED_IMAGE_SIZE = exports.MAX_CHAT_IMAGE_SIZE = exports.MAX_AVATAR_SIZE = exports.MIN_CALL_DURATION_SECONDS = exports.BILLING_INTERVAL_MS = exports.CALL_RING_TIMEOUT_SECONDS = exports.DEFAULT_STAFF_APPLICATION_FEE = exports.FREE_SECONDS_ON_SIGNUP = exports.LOW_BALANCE_WARNING_MINUTES = exports.MAX_RECHARGE_AMOUNT = exports.MIN_RECHARGE_AMOUNT = exports.MAX_LIMIT = exports.DEFAULT_LIMIT = exports.DEFAULT_PAGE = exports.OTP_RESEND_COOLDOWN_SECONDS = exports.OTP_MAX_ATTEMPTS = exports.OTP_EXPIRY_MINUTES = exports.OTP_LENGTH = exports.APP_NAME = void 0;
 exports.generateDummyUsername = generateDummyUsername;
 exports.generateDummyAvatar = generateDummyAvatar;
 const index_js_1 = require("../types/index.js");
@@ -28,6 +28,8 @@ exports.MAX_LIMIT = 100;
 exports.MIN_RECHARGE_AMOUNT = 50; // INR
 exports.MAX_RECHARGE_AMOUNT = 10000; // INR
 exports.LOW_BALANCE_WARNING_MINUTES = 2; // Warn user when balance can cover only 2 more minutes
+exports.FREE_SECONDS_ON_SIGNUP = 300; // 5 free minutes for new users
+exports.DEFAULT_STAFF_APPLICATION_FEE = 999; // INR
 // ─── Call ──────────────────────────────────────────────────────────────────────
 exports.CALL_RING_TIMEOUT_SECONDS = 60;
 exports.BILLING_INTERVAL_MS = 1000; // Per-second billing
@@ -35,7 +37,12 @@ exports.MIN_CALL_DURATION_SECONDS = 0;
 // ─── Upload ───────────────────────────────────────────────────────────────────
 exports.MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 exports.MAX_CHAT_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+exports.MAX_FEED_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+exports.MAX_FEED_REEL_SIZE = 100 * 1024 * 1024; // 100MB
+exports.MAX_FEED_IMAGES_PER_POST = 4;
+exports.MAX_FEED_REEL_DURATION_SEC = 60;
 exports.ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+exports.ALLOWED_REEL_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
 exports.RATE_LIMIT_WINDOW_MS = 2 * 60 * 1000; // 15 minutes
 exports.RATE_LIMIT_MAX_REQUESTS = 100;

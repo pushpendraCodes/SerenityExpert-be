@@ -11,7 +11,7 @@ const availabilitySlotSchema = zod_1.z.object({
 exports.registerExpertSchema = zod_1.z.object({
     bio: zod_1.z.string().max(1000).optional(),
     experience: zod_1.z.number().min(0).optional(),
-    categories: zod_1.z.array(zod_1.z.string()).min(1, "At least one category required"),
+    categories: zod_1.z.array(zod_1.z.string()).optional(),
     languages: zod_1.z.array(zod_1.z.string()).min(1).optional(),
     bankDetails: zod_1.z.object({
         accountName: zod_1.z.string().min(1),
@@ -46,6 +46,7 @@ exports.browseExpertsSchema = zod_1.z.object({
     language: zod_1.z.string().optional(),
     minRating: zod_1.z.coerce.number().min(0).max(5).optional(),
     status: zod_1.z.nativeEnum(index_js_1.ExpertStatus).optional(),
+    gender: zod_1.z.nativeEnum(index_js_1.Gender).optional(),
     page: zod_1.z.coerce.number().int().min(1).optional(),
     limit: zod_1.z.coerce.number().int().min(1).max(100).optional(),
     sort: zod_1.z.enum(["rating", "price", "experience"]).optional(),
