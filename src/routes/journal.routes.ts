@@ -8,13 +8,14 @@ import {
   commentSchema,
   feedQuerySchema,
   uploadSignatureQuerySchema,
+  myPostsQuerySchema,
 } from "../validators/journal.validator.js";
 import { paginationSchema } from "../validators/user.validator.js";
 
 const router = Router();
 
 router.get("/feed", optionalAuth, validate(feedQuerySchema, "query"), journalController.getFeed);
-router.get("/me", authenticate, requireUser, validate(paginationSchema, "query"), journalController.getMyPosts);
+router.get("/me", authenticate, requireUser, validate(myPostsQuerySchema, "query"), journalController.getMyPosts);
 router.get(
   "/upload-signature",
   authenticate,

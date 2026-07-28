@@ -127,3 +127,13 @@ export const feedQuerySchema = z
 export const uploadSignatureQuerySchema = z.object({
   type: z.enum(["image", "video"]),
 });
+
+export const myPostsQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    sort: z.string().optional(),
+    order: z.enum(["asc", "desc"]).optional(),
+    visibility: z.enum(["public", "private"]).optional(),
+  })
+  .passthrough();

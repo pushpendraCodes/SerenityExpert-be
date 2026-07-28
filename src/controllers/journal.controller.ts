@@ -49,7 +49,11 @@ export const getFeed = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getMyPosts = asyncHandler(async (req: Request, res: Response) => {
-  const result = await journalService.getMyPosts(req.user!._id.toString(), req.query);
+  const visibility = typeof req.query.visibility === "string" ? req.query.visibility : undefined;
+  const result = await journalService.getMyPosts(req.user!._id.toString(), {
+    ...req.query,
+    visibility,
+  });
   return sendPaginated(res, result);
 });
 

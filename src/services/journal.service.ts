@@ -110,11 +110,26 @@ export async function getFeed(
   });
 }
 
-/** Author-only: public + private journal */
-export async function getMyPosts(authorId: string, query: PaginationQuery) {
+/** Author-only: public + private journal. Optional visibility filter. */
+export async function getMyPosts(
+  authorId: string,
+  query: PaginationQuery & { visibility?: string | string[] }
+) {
+  const raw = query.visibility;
+  const visibility = Array.isArray(raw) ? raw[0] : raw;
+  const filter: Record<string, unknown> = {
+    authorId,
+    isDeleted: false,
+  };
+  if (visibility === JournalVisibility.PUBLIC || visibility === "public") {
+    filter.visibility = JournalVisibility.PUBLIC;
+  } else if (visibility === JournalVisibility.PRIVATE || visibility === "private") {
+    filter.visibility = JournalVisibility.PRIVATE;
+  }
+
   return paginate({
     model: JournalPost,
-    filter: { authorId, isDeleted: false },
+    filter,
     query,
     sort: { createdAt: -1 },
   });
