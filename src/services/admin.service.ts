@@ -216,10 +216,16 @@ export async function listExperts(query: PaginationQuery & { approved?: string; 
     model: Expert,
     filter,
     query,
-    populate: { path: "userId", select: "+realName name phone email avatar isBlocked" },
+    populate: {
+      path: "userId",
+      select: "+realName +dob name phone email avatar gender city state country isBlocked",
+    },
     sort: { createdAt: -1 },
   });
 }
+
+const ADMIN_EXPERT_USER_SELECT =
+  "+realName +dob name phone email avatar gender city state country isBlocked";
 
 export async function updateExpertByAdmin(
   expertId: string,
@@ -231,6 +237,13 @@ export async function updateExpertByAdmin(
     languages?: string[];
     pricePerMinute?: number;
     commissionPercent?: number;
+    bankDetails?: {
+      accountName?: string;
+      accountNumber?: string;
+      ifscCode?: string;
+      bankName?: string;
+      upiId?: string;
+    };
   }
 ) {
   const expert = await Expert.findById(expertId);
@@ -246,13 +259,14 @@ export async function updateExpertByAdmin(
   if (data.languages !== undefined) expert.languages = data.languages;
   if (data.pricePerMinute !== undefined) expert.pricePerMinute = data.pricePerMinute;
   if (data.commissionPercent !== undefined) expert.commissionPercent = data.commissionPercent;
+  if (data.bankDetails !== undefined) expert.bankDetails = data.bankDetails;
   await expert.save();
 
   if (data.name !== undefined) {
     await User.findByIdAndUpdate(expert.userId, { name: data.name });
   }
 
-  return Expert.findById(expertId).populate("userId", "+realName name phone email avatar isBlocked");
+  return Expert.findById(expertId).populate("userId", ADMIN_EXPERT_USER_SELECT);
 }
 
 export async function approveExpert(
@@ -519,7 +533,17 @@ export const cmsService = {
   updateFaq: (id: string, data: Record<string, unknown>) => Faq.findByIdAndUpdate(id, data, { new: true }),
   deleteFaq: (id: string) => Faq.findByIdAndUpdate(id, { isActive: false }),
 
-  listBanners: () => Banner.find({ isActive: true, startDate: { $lte: new Date() }, endDate: { $gte: new Date() } }),
+  listBanners: () => Banner.find({ isActive: true }).sort({ order: 1, createdAt: -1 }),
+  listPublicBanners: () => {
+    const now = new Date();
+    return Banner.find({
+      isActive: true,
+      $and: [
+        { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: now } }] },
+        { $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gte: now } }] },
+      ],
+    }).sort({ order: 1, createdAt: -1 });
+  },
   createBanner: (data: Record<string, unknown>) => Banner.create(data),
   updateBanner: (id: string, data: Record<string, unknown>) => Banner.findByIdAndUpdate(id, data, { new: true }),
   deleteBanner: (id: string) => Banner.findByIdAndUpdate(id, { isActive: false }),
@@ -575,6 +599,11 @@ export async function seedDefaultSettings(): Promise<void> {
       key: "call_recording_retention_days",
       value: "30",
       description: "Auto-delete call recordings from DB and Cloudinary older than this many days",
+    },
+    {
+      key: "staff_application_fee",
+      value: "999",
+      description: "One-time payment (INR) for users to activate the call button / staff application",
     },
   ];
 

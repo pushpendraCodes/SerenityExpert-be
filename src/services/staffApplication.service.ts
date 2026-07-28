@@ -25,10 +25,16 @@ import type { IExpert } from "../models/Expert.js";
 
 async function getStaffFee(): Promise<number> {
   const setting = await AdminSettings.findOne({ key: "staff_application_fee" });
-  const value = setting?.value;
-  if (typeof value === "number" && value > 0) return value;
-  if (typeof value === "string" && Number(value) > 0) return Number(value);
+  if (setting?.value !== undefined && setting?.value !== null && setting.value !== "") {
+    const n = typeof setting.value === "number" ? setting.value : Number(setting.value);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
   return DEFAULT_STAFF_APPLICATION_FEE;
+}
+
+/** Public amount shown on become-staff / call-button activation. */
+export async function getStaffApplicationFee(): Promise<number> {
+  return getStaffFee();
 }
 
 /** Create or update Expert so the user appears on Call / Chat (approved call button). */

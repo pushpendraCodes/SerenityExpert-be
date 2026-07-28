@@ -6,6 +6,7 @@ import * as payoutService from "../services/payout.service.js";
 import * as notificationService from "../services/notification.service.js";
 import * as communityService from "../services/community.service.js";
 import { adjustWallet } from "../services/wallet.service.js";
+import { getBannerUploadSignature as buildBannerUploadSignature } from "../services/cloudinary.service.js";
 import Call from "../models/Call.js";
 import { sendSuccess, sendCreated, sendPaginated } from "../utils/response.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -214,8 +215,17 @@ export const listBanners = asyncHandler(async (_req: Request, res: Response) => 
   return sendSuccess(res, banners);
 });
 
+export const getBannerUploadSignature = asyncHandler(async (req: Request, res: Response) => {
+  const type = (req.query.type as "image" | "video") || "image";
+  const sig = buildBannerUploadSignature(type);
+  return sendSuccess(res, sig);
+});
+
 export const createBanner = asyncHandler(async (req: Request, res: Response) => {
-  const banner = await adminService.cmsService.createBanner(req.body);
+  const banner = await adminService.cmsService.createBanner({
+    ...req.body,
+    imageUrl: req.body.imageUrl || "",
+  });
   return sendCreated(res, banner, "Banner created");
 });
 
@@ -255,6 +265,6 @@ export const listPublicFaqs = asyncHandler(async (_req: Request, res: Response) 
 });
 
 export const listPublicBanners = asyncHandler(async (_req: Request, res: Response) => {
-  const banners = await adminService.cmsService.listBanners();
+  const banners = await adminService.cmsService.listPublicBanners();
   return sendSuccess(res, banners);
 });

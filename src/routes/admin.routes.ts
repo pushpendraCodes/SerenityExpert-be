@@ -20,6 +20,7 @@ import {
   refundSchema,
   moderateQuestionSchema,
 } from "../validators/admin.validator.js";
+import { uploadSignatureQuerySchema } from "../validators/journal.validator.js";
 
 const router = Router();
 
@@ -91,6 +92,11 @@ router.delete("/faqs/:id", adminController.deleteFaq);
 
 // CMS - Banners
 router.get("/banners", adminController.listBanners);
+router.get(
+  "/banners/upload-signature",
+  validate(uploadSignatureQuerySchema, "query"),
+  adminController.getBannerUploadSignature
+);
 router.post("/banners", validate(createBannerSchema), adminController.createBanner);
 router.put("/banners/:id", adminController.updateBanner);
 router.delete("/banners/:id", adminController.deleteBanner);

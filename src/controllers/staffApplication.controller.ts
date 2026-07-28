@@ -24,6 +24,11 @@ export const getMine = asyncHandler(async (req: Request, res: Response) => {
   return sendSuccess(res, application);
 });
 
+export const getFee = asyncHandler(async (_req: Request, res: Response) => {
+  const amount = await staffApplicationService.getStaffApplicationFee();
+  return sendSuccess(res, { amount });
+});
+
 export const listApplications = asyncHandler(async (req: Request, res: Response) => {
   const result = await staffApplicationService.listStaffApplications(req.query);
   return sendPaginated(res, result);

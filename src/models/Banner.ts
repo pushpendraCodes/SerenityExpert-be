@@ -3,8 +3,14 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 export interface IBanner extends Document {
   _id: Types.ObjectId;
   title: string;
+  /** Poster / thumbnail image (optional when mediaType is video). */
   imageUrl: string;
+  /** Video URL for home feed ad videos. */
+  videoUrl?: string;
+  mediaType: "image" | "video";
   link?: string;
+  tagline?: string;
+  badge?: string;
   position: "home" | "expert_list" | "community";
   isActive: boolean;
   startDate?: Date;
@@ -22,9 +28,28 @@ const bannerSchema = new Schema<IBanner>(
     },
     imageUrl: {
       type: String,
-      required: true,
+      default: "",
+    },
+    videoUrl: {
+      type: String,
+      trim: true,
+    },
+    mediaType: {
+      type: String,
+      enum: ["image", "video"],
+      default: "image",
     },
     link: String,
+    tagline: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    badge: {
+      type: String,
+      trim: true,
+      maxlength: 40,
+    },
     position: {
       type: String,
       enum: ["home", "expert_list", "community"],

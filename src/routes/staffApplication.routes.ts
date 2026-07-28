@@ -14,6 +14,9 @@ const reviewSchema = z.object({
 
 const router = Router();
 
+/** Public fee for call-button activation (from admin settings). */
+router.get("/apply/fee", staffApplicationController.getFee);
+
 /** User-facing */
 router.post("/apply", authenticate, requireUser, staffApplicationController.apply);
 router.post(

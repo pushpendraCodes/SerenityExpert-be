@@ -51,6 +51,14 @@ export function getStoryUploadSignature(type: FeedUploadKind, userId: string) {
   return buildUploadSignature(type, folder);
 }
 
+export function getBannerUploadSignature(type: FeedUploadKind) {
+  const folder =
+    type === "video"
+      ? "expert-consultant/banners/videos"
+      : "expert-consultant/banners/images";
+  return buildUploadSignature(type, folder);
+}
+
 /** Cloudinary video thumbnail URL from a delivery URL / public id */
 export function reelThumbnailUrl(publicId: string): string {
   return cloudinary.url(publicId, {

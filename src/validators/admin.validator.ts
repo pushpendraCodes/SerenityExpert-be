@@ -12,6 +12,14 @@ export const walletAdjustmentSchema = z.object({
   type: z.enum(["credit", "debit"]),
 });
 
+const optionalBankDetailsSchema = z.object({
+  accountName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  ifscCode: z.string().optional(),
+  bankName: z.string().optional(),
+  upiId: z.string().optional(),
+}).optional();
+
 export const createExpertSchema = z.object({
   mobile: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid mobile number"),
   name: z.string().min(2).max(100),
@@ -21,13 +29,7 @@ export const createExpertSchema = z.object({
   languages: z.array(z.string()).min(1).optional(),
   pricePerMinute: z.number().min(0).optional(),
   commissionPercent: z.number().min(0).max(100).optional(),
-  bankDetails: z.object({
-    accountName: z.string().min(1),
-    accountNumber: z.string().min(1),
-    ifscCode: z.string().min(1),
-    bankName: z.string().min(1),
-    upiId: z.string().optional(),
-  }).optional(),
+  bankDetails: optionalBankDetailsSchema,
 });
 
 export const updateExpertSchema = z.object({
@@ -38,6 +40,7 @@ export const updateExpertSchema = z.object({
   languages: z.array(z.string()).min(1).optional(),
   pricePerMinute: z.number().min(0).optional(),
   commissionPercent: z.number().min(0).max(100).optional(),
+  bankDetails: optionalBankDetailsSchema,
 });
 
 export const approveExpertSchema = z.object({
@@ -70,14 +73,48 @@ export const createFaqSchema = z.object({
   order: z.number().int().optional(),
 });
 
-export const createBannerSchema = z.object({
-  title: z.string().min(1).max(200),
-  imageUrl: z.string().url(),
-  link: z.string().url().optional(),
-  position: z.string().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
+const bannerLinkSchema = z
+  .string()
+  .min(1)
+  .max(500)
+  .refine(
+    (v) => v.startsWith("/") || /^https?:\/\//i.test(v),
+    "Link must be a relative path or absolute URL"
+  )
+  .optional();
+
+export const createBannerSchema = z
+  .object({
+    title: z.string().min(1).max(200),
+    mediaType: z.enum(["image", "video"]).optional().default("image"),
+    imageUrl: z.union([z.string().url(), z.literal("")]).optional(),
+    videoUrl: z.union([z.string().url(), z.literal("")]).optional(),
+    link: bannerLinkSchema,
+    tagline: z.string().max(200).optional(),
+    badge: z.string().max(40).optional(),
+    position: z.enum(["home", "expert_list", "community"]).optional(),
+    order: z.number().int().optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const mediaType = data.mediaType ?? "image";
+    if (mediaType === "video") {
+      if (!data.videoUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Video URL is required for video banners",
+          path: ["videoUrl"],
+        });
+      }
+    } else if (!data.imageUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Image URL is required for image banners",
+        path: ["imageUrl"],
+      });
+    }
+  });
 
 export const createCouponSchema = z.object({
   code: z.string().min(3).max(30),
