@@ -81,15 +81,18 @@ export async function assertExpertCanLogin(mobile: string): Promise<IExpert> {
   return expert;
 }
 
-export async function browseExperts(query: PaginationQuery & {
-  category?: string;
-  search?: string;
-  language?: string;
-  minRating?: number;
-  status?: ExpertStatus;
-  gender?: Gender;
-  sort?: string;
-}) {
+export async function browseExperts(
+  query: PaginationQuery & {
+    category?: string;
+    search?: string;
+    language?: string;
+    minRating?: number;
+    status?: ExpertStatus;
+    gender?: Gender;
+    sort?: string;
+  },
+  excludeUserId?: string
+) {
   const filter: Record<string, unknown> = { isApproved: true };
 
   if (query.category) filter.categories = query.category;
@@ -99,7 +102,13 @@ export async function browseExperts(query: PaginationQuery & {
 
   if (query.gender) {
     const genderUsers = await User.find({ gender: query.gender }).select("_id");
-    filter.userId = { $in: genderUsers.map((u) => u._id) };
+    let ids = genderUsers.map((u) => u._id);
+    if (excludeUserId) {
+      ids = ids.filter((id) => id.toString() !== excludeUserId);
+    }
+    filter.userId = { $in: ids };
+  } else if (excludeUserId) {
+    filter.userId = { $ne: excludeUserId };
   }
 
   if (query.search) {
@@ -107,7 +116,9 @@ export async function browseExperts(query: PaginationQuery & {
     if (term) {
       const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const matchingUsers = await User.find({ name: { $regex: escaped, $options: "i" } }).select("_id");
-      const userIds = matchingUsers.map((u) => u._id);
+      const userIds = matchingUsers
+        .map((u) => u._id)
+        .filter((id) => !excludeUserId || id.toString() !== excludeUserId);
       const or: Record<string, unknown>[] = [
         { bio: { $regex: escaped, $options: "i" } },
         { languages: { $regex: escaped, $options: "i" } },
@@ -138,6 +149,18 @@ export async function browseExperts(query: PaginationQuery & {
   result.data = [...result.data].sort(
     (a, b) => rank((a as IExpert).status) - rank((b as IExpert).status)
   );
+
+  // Extra safety: drop self if still present after populate
+  if (excludeUserId) {
+    result.data = result.data.filter((expert) => {
+      const uid = (expert as IExpert).userId;
+      const id =
+        uid && typeof uid === "object" && "_id" in uid
+          ? String((uid as { _id: unknown })._id)
+          : String(uid);
+      return id !== excludeUserId;
+    });
+  }
 
   return result;
 }

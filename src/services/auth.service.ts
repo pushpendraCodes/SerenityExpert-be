@@ -55,7 +55,7 @@ export async function loginExpertWithOtp(mobile: string, otp: string): Promise<A
   const expert = await assertExpertCanLogin(phone);
   await verifyOtp(phone, otp);
 
-  const user = await User.findById(expert.userId);
+  const user = await User.findById(expert.userId).select("+realName");
   if (!user || user.isBlocked) {
     throw new AuthError("Account not found or blocked");
   }

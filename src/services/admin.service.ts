@@ -176,16 +176,23 @@ export async function listUsers(query: PaginationQuery & { search?: string; role
   if (query.search) {
     filter.$or = [
       { name: { $regex: query.search, $options: "i" } },
+      { realName: { $regex: query.search, $options: "i" } },
       { phone: { $regex: query.search, $options: "i" } },
       { email: { $regex: query.search, $options: "i" } },
     ];
   }
 
-  return paginate({ model: User, filter, query, sort: { createdAt: -1 } });
+  return paginate({
+    model: User,
+    filter,
+    query,
+    select: "+realName",
+    sort: { createdAt: -1 },
+  });
 }
 
 export async function updateUser(userId: string, data: { isBlocked?: boolean; role?: UserRole }) {
-  const user = await User.findByIdAndUpdate(userId, data, { new: true });
+  const user = await User.findByIdAndUpdate(userId, data, { new: true }).select("+realName");
   if (!user) throw new NotFoundError("User");
   return user;
 }
@@ -200,7 +207,7 @@ export async function listExperts(query: PaginationQuery & { approved?: string; 
     const regex = { $regex: escaped, $options: "i" };
     // Name/email/phone live on the linked User doc — resolve matching users first.
     const users = await User.find({
-      $or: [{ name: regex }, { phone: regex }, { email: regex }],
+      $or: [{ name: regex }, { realName: regex }, { phone: regex }, { email: regex }],
     }).select("_id");
     filter.$or = [{ mobile: regex }, { userId: { $in: users.map((u) => u._id) } }];
   }
@@ -209,7 +216,7 @@ export async function listExperts(query: PaginationQuery & { approved?: string; 
     model: Expert,
     filter,
     query,
-    populate: { path: "userId", select: "name phone email avatar isBlocked" },
+    populate: { path: "userId", select: "+realName name phone email avatar isBlocked" },
     sort: { createdAt: -1 },
   });
 }
@@ -245,7 +252,7 @@ export async function updateExpertByAdmin(
     await User.findByIdAndUpdate(expert.userId, { name: data.name });
   }
 
-  return Expert.findById(expertId).populate("userId", "name phone email avatar isBlocked");
+  return Expert.findById(expertId).populate("userId", "+realName name phone email avatar isBlocked");
 }
 
 export async function approveExpert(
@@ -289,7 +296,7 @@ export async function getTransactions(query: PaginationQuery & { type?: string; 
     model: Transaction,
     filter,
     query,
-    populate: { path: "userId", select: "name phone email" },
+    populate: { path: "userId", select: "+realName name phone email" },
     sort: { createdAt: -1 },
   });
 }
@@ -306,8 +313,8 @@ export async function listCalls(
     filter,
     query,
     populate: [
-      { path: "userId", select: "name phone avatar" },
-      { path: "expertId", populate: { path: "userId", select: "name avatar" } },
+      { path: "userId", select: "+realName name phone avatar" },
+      { path: "expertId", populate: { path: "userId", select: "+realName name avatar" } },
     ],
     sort: { createdAt: -1 },
   });

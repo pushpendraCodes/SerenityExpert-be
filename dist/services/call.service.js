@@ -30,6 +30,9 @@ async function initiateCall(userId, expertId) {
     if (!expert || !expert.isApproved) {
         throw new AppError_js_1.NotFoundError("Expert");
     }
+    if (expert.userId.toString() === userId || (typeof expert.userId === "object" && expert.userId._id?.toString() === userId)) {
+        throw new AppError_js_1.ConflictError("You cannot call yourself");
+    }
     if (expert.status !== index_js_1.ExpertStatus.ONLINE) {
         throw new AppError_js_1.ConflictError("Expert is not available");
     }

@@ -45,8 +45,11 @@ const asyncHandler_js_1 = require("../utils/asyncHandler.js");
 const params_js_1 = require("../utils/params.js");
 const index_js_1 = require("../types/index.js");
 exports.listChats = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const expert = await Expert_js_1.default.findOne({ userId: req.user._id });
-    const result = await chatService.getUserChats(req.user._id.toString(), !!expert, req.query);
+    // User website always lists chats as the caller (as=user).
+    // Staff portal must pass as=expert to see chats where they are the callable person.
+    const asExpert = req.query.as === "expert";
+    const expert = asExpert ? await Expert_js_1.default.findOne({ userId: req.user._id }) : null;
+    const result = await chatService.getUserChats(req.user._id.toString(), Boolean(expert), req.query);
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.startChat = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {

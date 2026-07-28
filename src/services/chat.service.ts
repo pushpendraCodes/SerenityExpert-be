@@ -16,11 +16,25 @@ export async function getOrCreateChat(userId: string, expertId: string): Promise
     throw new NotFoundError("Person");
   }
 
+  // Never allow chatting with yourself (dual-portal staff on user site)
+  if (expert.userId.toString() === userId) {
+    throw new ValidationError("You cannot start a chat with yourself");
+  }
+
   let chat = await Chat.findOne({ userId, expertId });
   if (!chat) {
     chat = await Chat.create({ userId, expertId, status: ChatStatus.ACTIVE });
   }
-  return chat;
+
+  const populated = await Chat.findById(chat._id)
+    .populate({ path: "userId", select: "name avatar gender" })
+    .populate({
+      path: "expertId",
+      select: "userId status pricePerMinute isApproved",
+      populate: { path: "userId", select: "name avatar gender" },
+    });
+
+  return (populated || chat) as IChat;
 }
 
 export async function getUserChats(userId: string, isExpert: boolean, query: PaginationQuery) {
@@ -32,13 +46,17 @@ export async function getUserChats(userId: string, isExpert: boolean, query: Pag
     model: Chat,
     filter,
     query,
-    populate: isExpert
-      ? { path: "userId", select: "name avatar" }
-      : {
-          path: "expertId",
-          select: "userId status pricePerMinute isApproved",
-          populate: { path: "userId", select: "name avatar gender" },
-        },
+    populate: [
+      {
+        path: "userId",
+        select: isExpert ? "+realName name avatar gender" : "name avatar gender",
+      },
+      {
+        path: "expertId",
+        select: "userId status pricePerMinute isApproved",
+        populate: { path: "userId", select: "name avatar gender" },
+      },
+    ],
     sort: { lastMessageAt: -1, updatedAt: -1 },
   });
 }

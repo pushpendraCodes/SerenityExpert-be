@@ -40,8 +40,8 @@ const validate_js_1 = require("../middlewares/validate.js");
 const expert_validator_js_1 = require("../validators/expert.validator.js");
 const user_validator_js_1 = require("../validators/user.validator.js");
 const router = (0, express_1.Router)();
-// Public routes
-router.get("/", (0, validate_js_1.validate)(expert_validator_js_1.browseExpertsSchema, "query"), expertController.browseExperts);
+// Public browse — optionalAuth so we can hide the caller's own staff profile
+router.get("/", auth_js_1.optionalAuth, (0, validate_js_1.validate)(expert_validator_js_1.browseExpertsSchema, "query"), expertController.browseExperts);
 router.get("/categories/list", expertController.getCategories);
 router.get("/:id/reviews", expertController.getExpertReviews);
 router.get("/:id", expertController.getExpertById);

@@ -22,11 +22,22 @@ async function getOrCreateChat(userId, expertId) {
     if (!expert) {
         throw new AppError_js_1.NotFoundError("Person");
     }
+    // Never allow chatting with yourself (dual-portal staff on user site)
+    if (expert.userId.toString() === userId) {
+        throw new AppError_js_1.ValidationError("You cannot start a chat with yourself");
+    }
     let chat = await Chat_js_1.default.findOne({ userId, expertId });
     if (!chat) {
         chat = await Chat_js_1.default.create({ userId, expertId, status: index_js_1.ChatStatus.ACTIVE });
     }
-    return chat;
+    const populated = await Chat_js_1.default.findById(chat._id)
+        .populate({ path: "userId", select: "name avatar gender" })
+        .populate({
+        path: "expertId",
+        select: "userId status pricePerMinute isApproved",
+        populate: { path: "userId", select: "name avatar gender" },
+    });
+    return (populated || chat);
 }
 async function getUserChats(userId, isExpert, query) {
     const filter = isExpert
@@ -36,13 +47,14 @@ async function getUserChats(userId, isExpert, query) {
         model: Chat_js_1.default,
         filter,
         query,
-        populate: isExpert
-            ? { path: "userId", select: "name avatar" }
-            : {
+        populate: [
+            { path: "userId", select: "name avatar gender" },
+            {
                 path: "expertId",
                 select: "userId status pricePerMinute isApproved",
                 populate: { path: "userId", select: "name avatar gender" },
             },
+        ],
         sort: { lastMessageAt: -1, updatedAt: -1 },
     });
 }

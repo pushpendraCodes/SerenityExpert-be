@@ -74,7 +74,7 @@ async function assertExpertCanLogin(mobile) {
     }
     return expert;
 }
-async function browseExperts(query) {
+async function browseExperts(query, excludeUserId) {
     const filter = { isApproved: true };
     if (query.category)
         filter.categories = query.category;
@@ -86,14 +86,23 @@ async function browseExperts(query) {
         filter.status = query.status;
     if (query.gender) {
         const genderUsers = await User_js_1.default.find({ gender: query.gender }).select("_id");
-        filter.userId = { $in: genderUsers.map((u) => u._id) };
+        let ids = genderUsers.map((u) => u._id);
+        if (excludeUserId) {
+            ids = ids.filter((id) => id.toString() !== excludeUserId);
+        }
+        filter.userId = { $in: ids };
+    }
+    else if (excludeUserId) {
+        filter.userId = { $ne: excludeUserId };
     }
     if (query.search) {
         const term = query.search.trim();
         if (term) {
             const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const matchingUsers = await User_js_1.default.find({ name: { $regex: escaped, $options: "i" } }).select("_id");
-            const userIds = matchingUsers.map((u) => u._id);
+            const userIds = matchingUsers
+                .map((u) => u._id)
+                .filter((id) => !excludeUserId || id.toString() !== excludeUserId);
             const or = [
                 { bio: { $regex: escaped, $options: "i" } },
                 { languages: { $regex: escaped, $options: "i" } },
@@ -121,6 +130,16 @@ async function browseExperts(query) {
     // Online (staff-panel status) first, then busy, then offline — within the page.
     const rank = (status) => status === index_js_2.ExpertStatus.ONLINE ? 0 : status === index_js_2.ExpertStatus.BUSY ? 1 : 2;
     result.data = [...result.data].sort((a, b) => rank(a.status) - rank(b.status));
+    // Extra safety: drop self if still present after populate
+    if (excludeUserId) {
+        result.data = result.data.filter((expert) => {
+            const uid = expert.userId;
+            const id = uid && typeof uid === "object" && "_id" in uid
+                ? String(uid._id)
+                : String(uid);
+            return id !== excludeUserId;
+        });
+    }
     return result;
 }
 async function getExpertProfile(expertId) {

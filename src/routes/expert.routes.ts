@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as expertController from "../controllers/expert.controller.js";
-import { authenticate, requireUser, requireExpert, requireApprovedExpert } from "../middlewares/auth.js";
+import { authenticate, requireUser, requireExpert, requireApprovedExpert, optionalAuth } from "../middlewares/auth.js";
 import { validate } from "../middlewares/validate.js";
 import {
   updateExpertProfileSchema,
@@ -12,8 +12,8 @@ import { paginationSchema } from "../validators/user.validator.js";
 
 const router = Router();
 
-// Public routes
-router.get("/", validate(browseExpertsSchema, "query"), expertController.browseExperts);
+// Public browse — optionalAuth so we can hide the caller's own staff profile
+router.get("/", optionalAuth, validate(browseExpertsSchema, "query"), expertController.browseExperts);
 router.get("/categories/list", expertController.getCategories);
 router.get("/:id/reviews", expertController.getExpertReviews);
 router.get("/:id", expertController.getExpertById);

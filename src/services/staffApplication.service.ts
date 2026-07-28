@@ -181,7 +181,7 @@ export async function listStaffApplications(
     filter,
     query,
     sort: { createdAt: -1 },
-    populate: { path: "userId", select: "name phone email avatar city state country" },
+    populate: { path: "userId", select: "+realName name phone email avatar city state country" },
   });
 }
 

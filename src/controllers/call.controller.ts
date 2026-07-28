@@ -38,8 +38,9 @@ export const endCall = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getCall = asyncHandler(async (req: Request, res: Response) => {
+  const expert = await Expert.findOne({ userId: req.user!._id });
   const call = await Call.findById(getParam(req, "id"))
-    .populate("userId", "name avatar")
+    .populate("userId", expert ? "+realName name avatar" : "name avatar")
     .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } });
   return sendSuccess(res, call);
 });
@@ -55,7 +56,7 @@ export const getHistory = asyncHandler(async (req: Request, res: Response) => {
     filter,
     query: req.query,
     populate: expert
-      ? { path: "userId", select: "name avatar" }
+      ? { path: "userId", select: "+realName name avatar" }
       : { path: "expertId", populate: { path: "userId", select: "name avatar" } },
     sort: { createdAt: -1 },
   });

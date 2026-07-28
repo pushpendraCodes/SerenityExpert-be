@@ -1,4 +1,4 @@
-import { Model, QueryOptions } from "mongoose";
+import { Model } from "mongoose";
 import { DEFAULT_PAGE, DEFAULT_LIMIT, MAX_LIMIT } from "./constants.js";
 import type { PaginatedResult, PaginationQuery } from "../types/index.js";
 
@@ -35,13 +35,14 @@ export async function paginate<T>(options: PaginateOptions<T>): Promise<Paginate
   }
 
   // Execute count and find in parallel
+  let findQuery = model.find(filter);
+  if (select) findQuery = findQuery.select(select);
+  findQuery = findQuery.skip(skip).limit(limit).sort(sort);
+  if (populate) findQuery = findQuery.populate(populate as never);
+
   const [total, data] = await Promise.all([
     model.countDocuments(filter),
-    model
-      .find(filter, select, { skip, limit, sort } as QueryOptions)
-      .populate(populate as string || "")
-      .lean<T[]>()
-      .exec(),
+    findQuery.lean<T[]>().exec(),
   ]);
 
   const totalPages = Math.ceil(total / limit);

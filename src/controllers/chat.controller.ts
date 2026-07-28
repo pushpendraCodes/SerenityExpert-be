@@ -8,10 +8,13 @@ import { getParam } from "../utils/params.js";
 import { MessageType } from "../types/index.js";
 
 export const listChats = asyncHandler(async (req: Request, res: Response) => {
-  const expert = await Expert.findOne({ userId: req.user!._id });
+  // User website always lists chats as the caller (as=user).
+  // Staff portal must pass as=expert to see chats where they are the callable person.
+  const asExpert = req.query.as === "expert";
+  const expert = asExpert ? await Expert.findOne({ userId: req.user!._id }) : null;
   const result = await chatService.getUserChats(
     req.user!._id.toString(),
-    !!expert,
+    Boolean(expert),
     req.query
   );
   return sendPaginated(res, result);

@@ -39,7 +39,8 @@ const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
 const params_js_1 = require("../utils/params.js");
 exports.browseExperts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const result = await expertService.browseExperts(req.query);
+    const excludeUserId = req.user?._id?.toString();
+    const result = await expertService.browseExperts(req.query, excludeUserId);
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getExpertById = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {

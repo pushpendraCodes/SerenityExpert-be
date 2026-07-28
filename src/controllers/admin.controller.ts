@@ -65,8 +65,8 @@ export const getLiveCalls = asyncHandler(async (_req: Request, res: Response) =>
 
 export const getCallDetails = asyncHandler(async (req: Request, res: Response) => {
   const call = await Call.findById(getParam(req, "id"))
-    .populate("userId", "name phone avatar")
-    .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } });
+    .populate("userId", "+realName name phone avatar")
+    .populate({ path: "expertId", populate: { path: "userId", select: "+realName name avatar" } });
   return sendSuccess(res, call);
 });
 

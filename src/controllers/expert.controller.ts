@@ -5,7 +5,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { getParam } from "../utils/params.js";
 
 export const browseExperts = asyncHandler(async (req: Request, res: Response) => {
-  const result = await expertService.browseExperts(req.query);
+  const excludeUserId = req.user?._id?.toString();
+  const result = await expertService.browseExperts(req.query, excludeUserId);
   return sendPaginated(res, result);
 });
 

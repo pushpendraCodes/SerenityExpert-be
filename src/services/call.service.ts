@@ -50,6 +50,9 @@ export async function initiateCall(userId: string, expertId: string): Promise<{
   if (!expert || !expert.isApproved) {
     throw new NotFoundError("Expert");
   }
+  if (expert.userId.toString() === userId || (typeof expert.userId === "object" && (expert.userId as { _id?: unknown })._id?.toString() === userId)) {
+    throw new ConflictError("You cannot call yourself");
+  }
   if (expert.status !== ExpertStatus.ONLINE) {
     throw new ConflictError("Expert is not available");
   }
@@ -106,10 +109,10 @@ export async function initiateCall(userId: string, expertId: string): Promise<{
 
   const tokens = buildCallTokens(channelName, userId, expertUser._id.toString());
 
-  const caller = await User.findById(userId);
+  const caller = await User.findById(userId).select("+realName name avatar");
   const incomingPayload = {
     callId: call._id.toString(),
-    callerName: caller?.name || "User",
+    callerName: caller?.realName || caller?.name || "User",
     callerAvatar: caller?.avatar || "",
     pricePerMinute: expert.pricePerMinute,
   };
@@ -224,11 +227,14 @@ function startBillingTimer(callId: string): void {
       state.elapsedSeconds += 1;
       const freeAtStart = state.freeSecondsRemainingAtStart ?? 0;
       const { paidSeconds } = splitFreeAndPaidSeconds(state.elapsedSeconds, freeAtStart);
-      state.totalCost = calculateCallCost(state.pricePerMinute, paidSeconds);
+      // User is charged only for paid seconds (free pool). Staff earnings use full duration.
+      const userCost = calculateCallCost(state.pricePerMinute, paidSeconds);
+      const grossCost = calculateCallCost(state.pricePerMinute, state.elapsedSeconds);
+      state.totalCost = userCost;
 
       const walletBalance = await getBalance(state.userId);
       // Wallet is only debited when the call ends — remaining = wallet minus accrued paid cost
-      const remainingBalance = Math.max(0, Math.round((walletBalance - state.totalCost) * 100) / 100);
+      const remainingBalance = Math.max(0, Math.round((walletBalance - userCost) * 100) / 100);
       const freeLeft = Math.max(0, freeAtStart - state.elapsedSeconds);
       const minsLeft =
         freeLeft > 0
@@ -239,14 +245,15 @@ function startBillingTimer(callId: string): void {
       emitToUser(state.userId, "call:timer", {
         callId,
         elapsed: state.elapsedSeconds,
-        cost: state.totalCost,
+        cost: userCost,
         balance: remainingBalance,
       });
       emitToUser(state.expertUserId, "call:timer", {
         callId,
         elapsed: state.elapsedSeconds,
-        cost: state.totalCost,
+        cost: grossCost,
         balance: remainingBalance,
+        pricePerMinute: state.pricePerMinute,
       });
 
       if (freeLeft <= 0 && minsLeft <= LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
@@ -315,7 +322,9 @@ export async function endCall(
     durationSeconds,
     freePool
   );
-  const totalCost = calculateCallCost(call.pricePerMinute, paidSeconds);
+  // User wallet: only paid seconds. Staff earnings / call.totalCost: full duration (platform covers free time).
+  const userCharge = calculateCallCost(call.pricePerMinute, paidSeconds);
+  const grossCost = calculateCallCost(call.pricePerMinute, durationSeconds);
 
   if (caller && freeSecondsUsed > 0) {
     caller.freeSecondsRemaining = freeSecondsLeft;
@@ -323,9 +332,9 @@ export async function endCall(
   }
 
   if (call.status === CallStatus.ACTIVE) {
-    if (totalCost > 0) {
+    if (userCharge > 0) {
       const walletBalance = await getBalance(call.userId.toString());
-      const debitAmount = Math.min(totalCost, walletBalance);
+      const debitAmount = Math.min(userCharge, walletBalance);
       try {
         if (debitAmount > 0) {
           await debitWallet(
@@ -345,8 +354,8 @@ export async function endCall(
 
     const expert = await Expert.findById(call.expertId);
     if (expert) {
-      const commission = (totalCost * expert.commissionPercent) / 100;
-      const expertEarning = totalCost - commission;
+      const commission = (grossCost * expert.commissionPercent) / 100;
+      const expertEarning = grossCost - commission;
       expert.totalEarnings += expertEarning;
       expert.totalCalls += 1;
       expert.totalMinutes += Math.ceil(durationSeconds / 60);
@@ -374,26 +383,31 @@ export async function endCall(
   call.endedAt = new Date();
   call.durationSeconds = durationSeconds;
   call.freeSecondsUsed = freeSecondsUsed;
-  call.totalCost = totalCost;
+  call.totalCost = grossCost;
   call.endReason = reason;
   await call.save();
 
   const expertDoc = await Expert.findById(call.expertId);
   const expertUserId = expertDoc?.userId?.toString() || null;
 
-  const endedPayload = {
+  const baseEnded = {
     callId,
     duration: durationSeconds,
-    cost: totalCost,
     status: call.status,
     endReason: reason,
     recordingUrl: call.recordingUrl,
   };
 
-  emitToUser(call.userId.toString(), "call:ended", endedPayload);
+  emitToUser(call.userId.toString(), "call:ended", {
+    ...baseEnded,
+    cost: userCharge,
+  });
 
   if (expertUserId) {
-    emitToUser(expertUserId, "call:ended", endedPayload);
+    emitToUser(expertUserId, "call:ended", {
+      ...baseEnded,
+      cost: grossCost,
+    });
     emitToUser(expertUserId, "call:cancelled", { callId, reason: call.status });
   }
 
