@@ -91,7 +91,7 @@ exports.refreshToken = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     return (0, response_js_1.sendSuccess)(res, tokens, "Token refreshed");
 });
 exports.logout = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    await authService.logout(req.user._id.toString());
+    await authService.logout(req.user._id.toString(), req.authPortal || "user");
     return (0, response_js_1.sendSuccess)(res, null, "Logged out successfully");
 });
 //# sourceMappingURL=auth.controller.js.map

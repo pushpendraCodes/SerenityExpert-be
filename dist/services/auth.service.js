@@ -25,16 +25,23 @@ async function resolveHasStaffProfile(userId) {
     const expert = await Expert_js_1.default.findOne({ userId, isApproved: true }).select("_id");
     return Boolean(expert);
 }
-async function issueTokens(user, roleOverride) {
+async function issueTokens(user, roleOverride, portal = "user") {
     const hasStaffProfile = await resolveHasStaffProfile(user._id.toString());
     const role = roleOverride ?? user.role;
     const payload = {
         userId: user._id.toString(),
         role,
         hasStaffProfile,
+        portal,
     };
     const tokens = (0, token_js_1.generateTokenPair)(payload);
-    user.refreshToken = tokens.refreshToken;
+    // Keep user-app and staff-portal sessions independent
+    if (portal === "staff") {
+        user.staffRefreshToken = tokens.refreshToken;
+    }
+    else {
+        user.refreshToken = tokens.refreshToken;
+    }
     await user.save();
     return { ...tokens, hasStaffProfile };
 }
@@ -49,7 +56,7 @@ async function loginExpertWithOtp(mobile, otp) {
     const phone = (0, phone_js_1.normalizePhone)(mobile);
     const expert = await (0, expert_service_js_1.assertExpertCanLogin)(phone);
     await (0, otp_service_js_1.verifyOtp)(phone, otp);
-    const user = await User_js_1.default.findById(expert.userId);
+    const user = await User_js_1.default.findById(expert.userId).select("+realName");
     if (!user || user.isBlocked) {
         throw new AppError_js_1.AuthError("Account not found or blocked");
     }
@@ -60,7 +67,7 @@ async function loginExpertWithOtp(mobile, otp) {
         // Do not flip identity away from user portal — staff access is via Expert link + hasStaffProfile
     }
     await user.save();
-    const tokens = await issueTokens(user, user.role === index_js_1.UserRole.ADMIN ? index_js_1.UserRole.ADMIN : index_js_1.UserRole.USER);
+    const tokens = await issueTokens(user, user.role === index_js_1.UserRole.ADMIN ? index_js_1.UserRole.ADMIN : index_js_1.UserRole.USER, "staff");
     return {
         user,
         expert,
@@ -95,7 +102,7 @@ async function loginWithOtp(phone, otp) {
             user.phone = normalized;
         await user.save();
     }
-    const tokens = await issueTokens(user);
+    const tokens = await issueTokens(user, undefined, "user");
     return {
         user,
         accessToken: tokens.accessToken,
@@ -137,7 +144,7 @@ async function loginWithGoogle(idToken) {
         user.lastLoginAt = new Date();
         await user.save();
     }
-    const tokens = await issueTokens(user);
+    const tokens = await issueTokens(user, undefined, "user");
     return {
         user,
         accessToken: tokens.accessToken,
@@ -148,13 +155,26 @@ async function loginWithGoogle(idToken) {
 }
 async function refreshAccessToken(refreshToken) {
     const decoded = (0, token_js_1.verifyRefreshToken)(refreshToken);
-    const user = await User_js_1.default.findById(decoded.userId).select("+refreshToken");
-    if (!user || user.refreshToken !== refreshToken || user.isBlocked) {
+    const user = await User_js_1.default.findById(decoded.userId).select("+refreshToken +staffRefreshToken");
+    if (!user || user.isBlocked) {
         throw new AppError_js_1.AuthError("Invalid refresh token");
     }
-    return issueTokens(user);
+    const portal = decoded.portal === "staff" || user.staffRefreshToken === refreshToken ? "staff" : "user";
+    const stored = portal === "staff" ? user.staffRefreshToken : user.refreshToken;
+    if (!stored || stored !== refreshToken) {
+        throw new AppError_js_1.AuthError("Invalid refresh token");
+    }
+    return issueTokens(user, decoded.role, portal);
 }
-async function logout(userId) {
+async function logout(userId, portal = "user") {
+    if (portal === "staff") {
+        await User_js_1.default.findByIdAndUpdate(userId, { $unset: { staffRefreshToken: 1 } });
+        return;
+    }
+    if (portal === "all") {
+        await User_js_1.default.findByIdAndUpdate(userId, { $unset: { refreshToken: 1, staffRefreshToken: 1 } });
+        return;
+    }
     await User_js_1.default.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
 }
 async function registerFcmToken(userId, token) {

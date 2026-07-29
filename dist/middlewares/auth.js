@@ -22,6 +22,7 @@ exports.authenticate = (0, asyncHandler_js_1.asyncHandler)(async (req, _res, nex
         throw new AppError_js_1.AuthError("Account not found or blocked");
     }
     req.user = user;
+    req.authPortal = decoded.portal === "staff" ? "staff" : "user";
     next();
 });
 exports.requireUser = (0, asyncHandler_js_1.asyncHandler)(async (req, _res, next) => {

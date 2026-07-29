@@ -100,11 +100,23 @@ async function getFeed(userId, query) {
         populate: { path: "authorId", select: "name avatar city state country" },
     });
 }
-/** Author-only: public + private journal */
+/** Author-only: public + private journal. Optional visibility filter. */
 async function getMyPosts(authorId, query) {
+    const raw = query.visibility;
+    const visibility = Array.isArray(raw) ? raw[0] : raw;
+    const filter = {
+        authorId,
+        isDeleted: false,
+    };
+    if (visibility === index_js_1.JournalVisibility.PUBLIC || visibility === "public") {
+        filter.visibility = index_js_1.JournalVisibility.PUBLIC;
+    }
+    else if (visibility === index_js_1.JournalVisibility.PRIVATE || visibility === "private") {
+        filter.visibility = index_js_1.JournalVisibility.PRIVATE;
+    }
     return (0, pagination_js_1.paginate)({
         model: JournalPost_js_1.default,
-        filter: { authorId, isDeleted: false },
+        filter,
         query,
         sort: { createdAt: -1 },
     });

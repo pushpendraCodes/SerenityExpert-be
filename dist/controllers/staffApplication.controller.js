@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.syncExperts = exports.review = exports.listApplications = exports.getMine = exports.verifyPayment = exports.apply = void 0;
+exports.syncExperts = exports.review = exports.listApplications = exports.getFee = exports.getMine = exports.verifyPayment = exports.apply = void 0;
 const staffApplicationService = __importStar(require("../services/staffApplication.service.js"));
 const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
@@ -49,6 +49,10 @@ exports.verifyPayment = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => 
 exports.getMine = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const application = await staffApplicationService.getMyStaffApplication(req.user._id.toString());
     return (0, response_js_1.sendSuccess)(res, application);
+});
+exports.getFee = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
+    const amount = await staffApplicationService.getStaffApplicationFee();
+    return (0, response_js_1.sendSuccess)(res, { amount });
 });
 exports.listApplications = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const result = await staffApplicationService.listStaffApplications(req.query);

@@ -73,7 +73,11 @@ exports.getFeed = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getMyPosts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const result = await journalService.getMyPosts(req.user._id.toString(), req.query);
+    const visibility = typeof req.query.visibility === "string" ? req.query.visibility : undefined;
+    const result = await journalService.getMyPosts(req.user._id.toString(), {
+        ...req.query,
+        visibility,
+    });
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getUserPosts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {

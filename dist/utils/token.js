@@ -10,7 +10,7 @@ exports.verifyRefreshToken = verifyRefreshToken;
 exports.generateTokenPair = generateTokenPair;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const accessExpiresIn = (process.env.ACCESS_TOKEN_EXPIRE || "30m");
-const refreshExpiresIn = (process.env.REFRESH_TOKEN_EXPIRE || "7d");
+const refreshExpiresIn = (process.env.REFRESH_TOKEN_EXPIRE || "365d");
 /**
  * Generate a JWT access token.
  */

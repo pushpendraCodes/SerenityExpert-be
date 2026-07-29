@@ -16,13 +16,15 @@ async function paginate(options) {
         sort = { [query.sort]: query.order === "asc" ? 1 : -1 };
     }
     // Execute count and find in parallel
+    let findQuery = model.find(filter);
+    if (select)
+        findQuery = findQuery.select(select);
+    findQuery = findQuery.skip(skip).limit(limit).sort(sort);
+    if (populate)
+        findQuery = findQuery.populate(populate);
     const [total, data] = await Promise.all([
         model.countDocuments(filter),
-        model
-            .find(filter, select, { skip, limit, sort })
-            .populate(populate || "")
-            .lean()
-            .exec(),
+        findQuery.lean().exec(),
     ]);
     const totalPages = Math.ceil(total / limit);
     return {

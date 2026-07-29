@@ -24,7 +24,11 @@ async function resolveHasStaffProfile(userId: string): Promise<boolean> {
   return Boolean(expert);
 }
 
-async function issueTokens(user: IUser, roleOverride?: UserRole): Promise<{
+async function issueTokens(
+  user: IUser,
+  roleOverride?: UserRole,
+  portal: "user" | "staff" = "user"
+): Promise<{
   accessToken: string;
   refreshToken: string;
   hasStaffProfile: boolean;
@@ -35,9 +39,15 @@ async function issueTokens(user: IUser, roleOverride?: UserRole): Promise<{
     userId: user._id.toString(),
     role,
     hasStaffProfile,
+    portal,
   };
   const tokens = generateTokenPair(payload);
-  user.refreshToken = tokens.refreshToken;
+  // Keep user-app and staff-portal sessions independent
+  if (portal === "staff") {
+    user.staffRefreshToken = tokens.refreshToken;
+  } else {
+    user.refreshToken = tokens.refreshToken;
+  }
   await user.save();
   return { ...tokens, hasStaffProfile };
 }
@@ -68,7 +78,11 @@ export async function loginExpertWithOtp(mobile: string, otp: string): Promise<A
   }
   await user.save();
 
-  const tokens = await issueTokens(user, user.role === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER);
+  const tokens = await issueTokens(
+    user,
+    user.role === UserRole.ADMIN ? UserRole.ADMIN : UserRole.USER,
+    "staff"
+  );
 
   return {
     user,
@@ -107,7 +121,7 @@ export async function loginWithOtp(phone: string, otp: string): Promise<AuthResu
     await user.save();
   }
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, undefined, "user");
 
   return {
     user,
@@ -160,7 +174,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResult> {
     await user.save();
   }
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, undefined, "user");
 
   return {
     user,
@@ -177,16 +191,35 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   hasStaffProfile: boolean;
 }> {
   const decoded = verifyRefreshToken(refreshToken);
-  const user = await User.findById(decoded.userId).select("+refreshToken");
+  const user = await User.findById(decoded.userId).select("+refreshToken +staffRefreshToken");
 
-  if (!user || user.refreshToken !== refreshToken || user.isBlocked) {
+  if (!user || user.isBlocked) {
     throw new AuthError("Invalid refresh token");
   }
 
-  return issueTokens(user);
+  const portal: "user" | "staff" =
+    decoded.portal === "staff" || user.staffRefreshToken === refreshToken ? "staff" : "user";
+
+  const stored = portal === "staff" ? user.staffRefreshToken : user.refreshToken;
+  if (!stored || stored !== refreshToken) {
+    throw new AuthError("Invalid refresh token");
+  }
+
+  return issueTokens(user, decoded.role, portal);
 }
 
-export async function logout(userId: string): Promise<void> {
+export async function logout(
+  userId: string,
+  portal: "user" | "staff" | "all" = "user"
+): Promise<void> {
+  if (portal === "staff") {
+    await User.findByIdAndUpdate(userId, { $unset: { staffRefreshToken: 1 } });
+    return;
+  }
+  if (portal === "all") {
+    await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1, staffRefreshToken: 1 } });
+    return;
+  }
   await User.findByIdAndUpdate(userId, { $unset: { refreshToken: 1 } });
 }
 

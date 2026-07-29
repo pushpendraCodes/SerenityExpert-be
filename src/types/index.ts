@@ -141,10 +141,10 @@ export interface AvailabilitySlot {
 }
 
 export interface BankDetails {
-  accountName: string;
-  accountNumber: string;
-  ifscCode: string;
-  bankName: string;
+  accountName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  bankName?: string;
   upiId?: string;
 }
 
@@ -153,6 +153,8 @@ export interface TokenPayload {
   role: UserRole;
   /** True when user has an approved Expert (staff) profile — dual portal */
   hasStaffProfile?: boolean;
+  /** Which portal issued this token — keeps user & staff sessions independent */
+  portal?: "user" | "staff";
 }
 
 export interface OtpData {

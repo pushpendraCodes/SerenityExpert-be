@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadSignatureQuerySchema = exports.feedQuerySchema = exports.commentSchema = exports.updatePostSchema = exports.createPostSchema = void 0;
+exports.myPostsQuerySchema = exports.uploadSignatureQuerySchema = exports.feedQuerySchema = exports.commentSchema = exports.updatePostSchema = exports.createPostSchema = void 0;
 const zod_1 = require("zod");
 const index_js_1 = require("../types/index.js");
 const constants_js_1 = require("../utils/constants.js");
@@ -115,4 +115,13 @@ exports.feedQuerySchema = zod_1.z
 exports.uploadSignatureQuerySchema = zod_1.z.object({
     type: zod_1.z.enum(["image", "video"]),
 });
+exports.myPostsQuerySchema = zod_1.z
+    .object({
+    page: zod_1.z.coerce.number().int().min(1).optional(),
+    limit: zod_1.z.coerce.number().int().min(1).max(100).optional(),
+    sort: zod_1.z.string().optional(),
+    order: zod_1.z.enum(["asc", "desc"]).optional(),
+    visibility: zod_1.z.enum(["public", "private"]).optional(),
+})
+    .passthrough();
 //# sourceMappingURL=journal.validator.js.map

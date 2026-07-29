@@ -172,14 +172,21 @@ async function listUsers(query) {
     if (query.search) {
         filter.$or = [
             { name: { $regex: query.search, $options: "i" } },
+            { realName: { $regex: query.search, $options: "i" } },
             { phone: { $regex: query.search, $options: "i" } },
             { email: { $regex: query.search, $options: "i" } },
         ];
     }
-    return (0, pagination_js_1.paginate)({ model: User_js_1.default, filter, query, sort: { createdAt: -1 } });
+    return (0, pagination_js_1.paginate)({
+        model: User_js_1.default,
+        filter,
+        query,
+        select: "+realName",
+        sort: { createdAt: -1 },
+    });
 }
 async function updateUser(userId, data) {
-    const user = await User_js_1.default.findByIdAndUpdate(userId, data, { new: true });
+    const user = await User_js_1.default.findByIdAndUpdate(userId, data, { new: true }).select("+realName");
     if (!user)
         throw new AppError_js_1.NotFoundError("User");
     return user;
@@ -195,7 +202,7 @@ async function listExperts(query) {
         const regex = { $regex: escaped, $options: "i" };
         // Name/email/phone live on the linked User doc — resolve matching users first.
         const users = await User_js_1.default.find({
-            $or: [{ name: regex }, { phone: regex }, { email: regex }],
+            $or: [{ name: regex }, { realName: regex }, { phone: regex }, { email: regex }],
         }).select("_id");
         filter.$or = [{ mobile: regex }, { userId: { $in: users.map((u) => u._id) } }];
     }
@@ -203,10 +210,14 @@ async function listExperts(query) {
         model: Expert_js_1.default,
         filter,
         query,
-        populate: { path: "userId", select: "name phone email avatar isBlocked" },
+        populate: {
+            path: "userId",
+            select: "+realName +dob name phone email avatar gender city state country isBlocked",
+        },
         sort: { createdAt: -1 },
     });
 }
+const ADMIN_EXPERT_USER_SELECT = "+realName +dob name phone email avatar gender city state country isBlocked";
 async function updateExpertByAdmin(expertId, data) {
     const expert = await Expert_js_1.default.findById(expertId);
     if (!expert)
@@ -226,11 +237,13 @@ async function updateExpertByAdmin(expertId, data) {
         expert.pricePerMinute = data.pricePerMinute;
     if (data.commissionPercent !== undefined)
         expert.commissionPercent = data.commissionPercent;
+    if (data.bankDetails !== undefined)
+        expert.bankDetails = data.bankDetails;
     await expert.save();
     if (data.name !== undefined) {
         await User_js_1.default.findByIdAndUpdate(expert.userId, { name: data.name });
     }
-    return Expert_js_1.default.findById(expertId).populate("userId", "name phone email avatar isBlocked");
+    return Expert_js_1.default.findById(expertId).populate("userId", ADMIN_EXPERT_USER_SELECT);
 }
 async function approveExpert(expertId, data) {
     const expert = await Expert_js_1.default.findById(expertId);
@@ -272,7 +285,7 @@ async function getTransactions(query) {
         model: Transaction_js_1.default,
         filter,
         query,
-        populate: { path: "userId", select: "name phone email" },
+        populate: { path: "userId", select: "+realName name phone email" },
         sort: { createdAt: -1 },
     });
 }
@@ -287,8 +300,8 @@ async function listCalls(query) {
         filter,
         query,
         populate: [
-            { path: "userId", select: "name phone avatar" },
-            { path: "expertId", populate: { path: "userId", select: "name avatar" } },
+            { path: "userId", select: "+realName name phone avatar" },
+            { path: "expertId", populate: { path: "userId", select: "+realName name avatar" } },
         ],
         sort: { createdAt: -1 },
     });
@@ -456,7 +469,17 @@ exports.cmsService = {
     createFaq: (data) => Faq_js_1.default.create(data),
     updateFaq: (id, data) => Faq_js_1.default.findByIdAndUpdate(id, data, { new: true }),
     deleteFaq: (id) => Faq_js_1.default.findByIdAndUpdate(id, { isActive: false }),
-    listBanners: () => Banner_js_1.default.find({ isActive: true, startDate: { $lte: new Date() }, endDate: { $gte: new Date() } }),
+    listBanners: () => Banner_js_1.default.find({ isActive: true }).sort({ order: 1, createdAt: -1 }),
+    listPublicBanners: () => {
+        const now = new Date();
+        return Banner_js_1.default.find({
+            isActive: true,
+            $and: [
+                { $or: [{ startDate: { $exists: false } }, { startDate: null }, { startDate: { $lte: now } }] },
+                { $or: [{ endDate: { $exists: false } }, { endDate: null }, { endDate: { $gte: now } }] },
+            ],
+        }).sort({ order: 1, createdAt: -1 });
+    },
     createBanner: (data) => Banner_js_1.default.create(data),
     updateBanner: (id, data) => Banner_js_1.default.findByIdAndUpdate(id, data, { new: true }),
     deleteBanner: (id) => Banner_js_1.default.findByIdAndUpdate(id, { isActive: false }),
@@ -512,6 +535,11 @@ async function seedDefaultSettings() {
             key: "call_recording_retention_days",
             value: "30",
             description: "Auto-delete call recordings from DB and Cloudinary older than this many days",
+        },
+        {
+            key: "staff_application_fee",
+            value: "999",
+            description: "One-time payment (INR) for users to activate the call button / staff application",
         },
     ];
     for (const setting of defaults) {

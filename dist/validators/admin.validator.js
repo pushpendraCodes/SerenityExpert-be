@@ -12,6 +12,13 @@ exports.walletAdjustmentSchema = zod_1.z.object({
     description: zod_1.z.string().min(3).max(500),
     type: zod_1.z.enum(["credit", "debit"]),
 });
+const optionalBankDetailsSchema = zod_1.z.object({
+    accountName: zod_1.z.string().optional(),
+    accountNumber: zod_1.z.string().optional(),
+    ifscCode: zod_1.z.string().optional(),
+    bankName: zod_1.z.string().optional(),
+    upiId: zod_1.z.string().optional(),
+}).optional();
 exports.createExpertSchema = zod_1.z.object({
     mobile: zod_1.z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid mobile number"),
     name: zod_1.z.string().min(2).max(100),
@@ -21,13 +28,7 @@ exports.createExpertSchema = zod_1.z.object({
     languages: zod_1.z.array(zod_1.z.string()).min(1).optional(),
     pricePerMinute: zod_1.z.number().min(0).optional(),
     commissionPercent: zod_1.z.number().min(0).max(100).optional(),
-    bankDetails: zod_1.z.object({
-        accountName: zod_1.z.string().min(1),
-        accountNumber: zod_1.z.string().min(1),
-        ifscCode: zod_1.z.string().min(1),
-        bankName: zod_1.z.string().min(1),
-        upiId: zod_1.z.string().optional(),
-    }).optional(),
+    bankDetails: optionalBankDetailsSchema,
 });
 exports.updateExpertSchema = zod_1.z.object({
     name: zod_1.z.string().min(2).max(100).optional(),
@@ -37,6 +38,7 @@ exports.updateExpertSchema = zod_1.z.object({
     languages: zod_1.z.array(zod_1.z.string()).min(1).optional(),
     pricePerMinute: zod_1.z.number().min(0).optional(),
     commissionPercent: zod_1.z.number().min(0).max(100).optional(),
+    bankDetails: optionalBankDetailsSchema,
 });
 exports.approveExpertSchema = zod_1.z.object({
     isApproved: zod_1.z.boolean(),
@@ -64,13 +66,44 @@ exports.createFaqSchema = zod_1.z.object({
     category: zod_1.z.string().optional(),
     order: zod_1.z.number().int().optional(),
 });
-exports.createBannerSchema = zod_1.z.object({
+const bannerLinkSchema = zod_1.z
+    .string()
+    .min(1)
+    .max(500)
+    .refine((v) => v.startsWith("/") || /^https?:\/\//i.test(v), "Link must be a relative path or absolute URL")
+    .optional();
+exports.createBannerSchema = zod_1.z
+    .object({
     title: zod_1.z.string().min(1).max(200),
-    imageUrl: zod_1.z.string().url(),
-    link: zod_1.z.string().url().optional(),
-    position: zod_1.z.string().optional(),
+    mediaType: zod_1.z.enum(["image", "video"]).optional().default("image"),
+    imageUrl: zod_1.z.union([zod_1.z.string().url(), zod_1.z.literal("")]).optional(),
+    videoUrl: zod_1.z.union([zod_1.z.string().url(), zod_1.z.literal("")]).optional(),
+    link: bannerLinkSchema,
+    tagline: zod_1.z.string().max(200).optional(),
+    badge: zod_1.z.string().max(40).optional(),
+    position: zod_1.z.enum(["home", "expert_list", "community"]).optional(),
+    order: zod_1.z.number().int().optional(),
     startDate: zod_1.z.string().datetime().optional(),
     endDate: zod_1.z.string().datetime().optional(),
+})
+    .superRefine((data, ctx) => {
+    const mediaType = data.mediaType ?? "image";
+    if (mediaType === "video") {
+        if (!data.videoUrl) {
+            ctx.addIssue({
+                code: zod_1.z.ZodIssueCode.custom,
+                message: "Video URL is required for video banners",
+                path: ["videoUrl"],
+            });
+        }
+    }
+    else if (!data.imageUrl) {
+        ctx.addIssue({
+            code: zod_1.z.ZodIssueCode.custom,
+            message: "Image URL is required for image banners",
+            path: ["imageUrl"],
+        });
+    }
 });
 exports.createCouponSchema = zod_1.z.object({
     code: zod_1.z.string().min(3).max(30),

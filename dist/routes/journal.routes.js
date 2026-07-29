@@ -41,7 +41,7 @@ const journal_validator_js_1 = require("../validators/journal.validator.js");
 const user_validator_js_1 = require("../validators/user.validator.js");
 const router = (0, express_1.Router)();
 router.get("/feed", auth_js_1.optionalAuth, (0, validate_js_1.validate)(journal_validator_js_1.feedQuerySchema, "query"), journalController.getFeed);
-router.get("/me", auth_js_1.authenticate, auth_js_1.requireUser, (0, validate_js_1.validate)(user_validator_js_1.paginationSchema, "query"), journalController.getMyPosts);
+router.get("/me", auth_js_1.authenticate, auth_js_1.requireUser, (0, validate_js_1.validate)(journal_validator_js_1.myPostsQuerySchema, "query"), journalController.getMyPosts);
 router.get("/upload-signature", auth_js_1.authenticate, auth_js_1.requireUser, (0, validate_js_1.validate)(journal_validator_js_1.uploadSignatureQuerySchema, "query"), journalController.getUploadSignature);
 router.post("/", auth_js_1.authenticate, auth_js_1.requireUser, (0, validate_js_1.validate)(journal_validator_js_1.createPostSchema), journalController.createPost);
 router.get("/user/:userId", auth_js_1.optionalAuth, (0, validate_js_1.validate)(user_validator_js_1.paginationSchema, "query"), journalController.getUserPosts);

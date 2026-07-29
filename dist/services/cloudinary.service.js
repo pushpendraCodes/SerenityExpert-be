@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFeedUploadSignature = getFeedUploadSignature;
 exports.getStoryUploadSignature = getStoryUploadSignature;
+exports.getBannerUploadSignature = getBannerUploadSignature;
 exports.reelThumbnailUrl = reelThumbnailUrl;
 exports.uploadImage = uploadImage;
 exports.uploadFromUrl = uploadFromUrl;
@@ -73,6 +74,12 @@ function getFeedUploadSignature(type, userId) {
 }
 function getStoryUploadSignature(type, userId) {
     const folder = `expert-consultant/stories/${userId}`;
+    return buildUploadSignature(type, folder);
+}
+function getBannerUploadSignature(type) {
+    const folder = type === "video"
+        ? "expert-consultant/banners/videos"
+        : "expert-consultant/banners/images";
     return buildUploadSignature(type, folder);
 }
 /** Cloudinary video thumbnail URL from a delivery URL / public id */

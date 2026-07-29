@@ -63,6 +63,6 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const logout = asyncHandler(async (req: Request, res: Response) => {
-  await authService.logout(req.user!._id.toString());
+  await authService.logout(req.user!._id.toString(), req.authPortal || "user");
   return sendSuccess(res, null, "Logged out successfully");
 });

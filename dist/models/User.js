@@ -127,6 +127,10 @@ const userSchema = new mongoose_1.Schema({
         type: String,
         select: false,
     },
+    staffRefreshToken: {
+        type: String,
+        select: false,
+    },
     lastLoginAt: {
         type: Date,
     },
@@ -136,6 +140,7 @@ const userSchema = new mongoose_1.Schema({
         transform(_doc, ret) {
             Reflect.deleteProperty(ret, "__v");
             Reflect.deleteProperty(ret, "refreshToken");
+            Reflect.deleteProperty(ret, "staffRefreshToken");
             return ret;
         },
     },

@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getStaffApplicationFee = getStaffApplicationFee;
 exports.ensureApprovedExpertForUser = ensureApprovedExpertForUser;
 exports.applyForStaff = applyForStaff;
 exports.verifyStaffApplicationPayment = verifyStaffApplicationPayment;
@@ -25,12 +26,16 @@ const phone_js_1 = require("../utils/phone.js");
 const pagination_js_1 = require("../utils/pagination.js");
 async function getStaffFee() {
     const setting = await AdminSettings_js_1.default.findOne({ key: "staff_application_fee" });
-    const value = setting?.value;
-    if (typeof value === "number" && value > 0)
-        return value;
-    if (typeof value === "string" && Number(value) > 0)
-        return Number(value);
+    if (setting?.value !== undefined && setting?.value !== null && setting.value !== "") {
+        const n = typeof setting.value === "number" ? setting.value : Number(setting.value);
+        if (Number.isFinite(n) && n >= 0)
+            return n;
+    }
     return constants_js_1.DEFAULT_STAFF_APPLICATION_FEE;
+}
+/** Public amount shown on become-staff / call-button activation. */
+async function getStaffApplicationFee() {
+    return getStaffFee();
 }
 /** Create or update Expert so the user appears on Call / Chat (approved call button). */
 async function ensureApprovedExpertForUser(user, opts = {}) {
@@ -159,7 +164,7 @@ async function listStaffApplications(query) {
         filter,
         query,
         sort: { createdAt: -1 },
-        populate: { path: "userId", select: "name phone email avatar city state country" },
+        populate: { path: "userId", select: "+realName name phone email avatar city state country" },
     });
 }
 async function reviewStaffApplication(applicationId, adminId, data) {

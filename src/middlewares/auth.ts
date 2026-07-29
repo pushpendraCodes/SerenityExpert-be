@@ -21,6 +21,7 @@ export const authenticate = asyncHandler(async (req: Request, _res: Response, ne
   }
 
   req.user = user;
+  req.authPortal = decoded.portal === "staff" ? "staff" : "user";
   next();
 });
 

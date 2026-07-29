@@ -80,10 +80,10 @@ async function initiateCall(userId, expertId) {
     expert.status = index_js_1.ExpertStatus.BUSY;
     await expert.save();
     const tokens = (0, agora_service_js_1.buildCallTokens)(channelName, userId, expertUser._id.toString());
-    const caller = await User_js_1.default.findById(userId);
+    const caller = await User_js_1.default.findById(userId).select("+realName name avatar");
     const incomingPayload = {
         callId: call._id.toString(),
-        callerName: caller?.name || "User",
+        callerName: caller?.realName || caller?.name || "User",
         callerAvatar: caller?.avatar || "",
         pricePerMinute: expert.pricePerMinute,
     };
@@ -170,10 +170,13 @@ function startBillingTimer(callId) {
             state.elapsedSeconds += 1;
             const freeAtStart = state.freeSecondsRemainingAtStart ?? 0;
             const { paidSeconds } = (0, wallet_service_js_1.splitFreeAndPaidSeconds)(state.elapsedSeconds, freeAtStart);
-            state.totalCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, paidSeconds);
+            // User is charged only for paid seconds (free pool). Staff earnings use full duration.
+            const userCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, paidSeconds);
+            const grossCost = (0, wallet_service_js_1.calculateCallCost)(state.pricePerMinute, state.elapsedSeconds);
+            state.totalCost = userCost;
             const walletBalance = await (0, wallet_service_js_1.getBalance)(state.userId);
             // Wallet is only debited when the call ends — remaining = wallet minus accrued paid cost
-            const remainingBalance = Math.max(0, Math.round((walletBalance - state.totalCost) * 100) / 100);
+            const remainingBalance = Math.max(0, Math.round((walletBalance - userCost) * 100) / 100);
             const freeLeft = Math.max(0, freeAtStart - state.elapsedSeconds);
             const minsLeft = freeLeft > 0
                 ? freeLeft / 60 + (0, wallet_service_js_1.minutesRemaining)(remainingBalance, state.pricePerMinute)
@@ -182,14 +185,15 @@ function startBillingTimer(callId) {
             (0, socket_js_1.emitToUser)(state.userId, "call:timer", {
                 callId,
                 elapsed: state.elapsedSeconds,
-                cost: state.totalCost,
+                cost: userCost,
                 balance: remainingBalance,
             });
             (0, socket_js_1.emitToUser)(state.expertUserId, "call:timer", {
                 callId,
                 elapsed: state.elapsedSeconds,
-                cost: state.totalCost,
+                cost: grossCost,
                 balance: remainingBalance,
+                pricePerMinute: state.pricePerMinute,
             });
             if (freeLeft <= 0 && minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
                 console.log(`⚠️ Low balance warning for call ${callId}: balance=${remainingBalance}, minsLeft=${minsLeft}`);
@@ -238,15 +242,17 @@ async function endCall(callId, endedByUserId, reason = "completed") {
         ? state.freeSecondsRemainingAtStart
         : caller?.freeSecondsRemaining ?? 0;
     const { freeSecondsUsed, paidSeconds, freeSecondsLeft } = (0, wallet_service_js_1.splitFreeAndPaidSeconds)(durationSeconds, freePool);
-    const totalCost = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, paidSeconds);
+    // User wallet: only paid seconds. Staff earnings / call.totalCost: full duration (platform covers free time).
+    const userCharge = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, paidSeconds);
+    const grossCost = (0, wallet_service_js_1.calculateCallCost)(call.pricePerMinute, durationSeconds);
     if (caller && freeSecondsUsed > 0) {
         caller.freeSecondsRemaining = freeSecondsLeft;
         await caller.save();
     }
     if (call.status === index_js_1.CallStatus.ACTIVE) {
-        if (totalCost > 0) {
+        if (userCharge > 0) {
             const walletBalance = await (0, wallet_service_js_1.getBalance)(call.userId.toString());
-            const debitAmount = Math.min(totalCost, walletBalance);
+            const debitAmount = Math.min(userCharge, walletBalance);
             try {
                 if (debitAmount > 0) {
                     await (0, wallet_service_js_1.debitWallet)(call.userId.toString(), debitAmount, `Call with staff (${durationSeconds}s, ${freeSecondsUsed}s free)`, {
@@ -261,8 +267,8 @@ async function endCall(callId, endedByUserId, reason = "completed") {
         }
         const expert = await Expert_js_1.default.findById(call.expertId);
         if (expert) {
-            const commission = (totalCost * expert.commissionPercent) / 100;
-            const expertEarning = totalCost - commission;
+            const commission = (grossCost * expert.commissionPercent) / 100;
+            const expertEarning = grossCost - commission;
             expert.totalEarnings += expertEarning;
             expert.totalCalls += 1;
             expert.totalMinutes += Math.ceil(durationSeconds / 60);
@@ -292,22 +298,27 @@ async function endCall(callId, endedByUserId, reason = "completed") {
     call.endedAt = new Date();
     call.durationSeconds = durationSeconds;
     call.freeSecondsUsed = freeSecondsUsed;
-    call.totalCost = totalCost;
+    call.totalCost = grossCost;
     call.endReason = reason;
     await call.save();
     const expertDoc = await Expert_js_1.default.findById(call.expertId);
     const expertUserId = expertDoc?.userId?.toString() || null;
-    const endedPayload = {
+    const baseEnded = {
         callId,
         duration: durationSeconds,
-        cost: totalCost,
         status: call.status,
         endReason: reason,
         recordingUrl: call.recordingUrl,
     };
-    (0, socket_js_1.emitToUser)(call.userId.toString(), "call:ended", endedPayload);
+    (0, socket_js_1.emitToUser)(call.userId.toString(), "call:ended", {
+        ...baseEnded,
+        cost: userCharge,
+    });
     if (expertUserId) {
-        (0, socket_js_1.emitToUser)(expertUserId, "call:ended", endedPayload);
+        (0, socket_js_1.emitToUser)(expertUserId, "call:ended", {
+            ...baseEnded,
+            cost: grossCost,
+        });
         (0, socket_js_1.emitToUser)(expertUserId, "call:cancelled", { callId, reason: call.status });
     }
     return call;

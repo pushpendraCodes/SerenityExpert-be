@@ -25,6 +25,8 @@ export interface IUser extends Document {
   walletBalance: number;
   fcmTokens: string[];
   refreshToken?: string;
+  /** Staff portal refresh — independent from user-app session */
+  staffRefreshToken?: string;
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -123,6 +125,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       select: false,
     },
+    staffRefreshToken: {
+      type: String,
+      select: false,
+    },
     lastLoginAt: {
       type: Date,
     },
@@ -133,6 +139,7 @@ const userSchema = new Schema<IUser>(
       transform(_doc, ret) {
         Reflect.deleteProperty(ret, "__v");
         Reflect.deleteProperty(ret, "refreshToken");
+        Reflect.deleteProperty(ret, "staffRefreshToken");
         return ret;
       },
     },

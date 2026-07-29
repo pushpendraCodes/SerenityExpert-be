@@ -48,7 +48,10 @@ async function getUserChats(userId, isExpert, query) {
         filter,
         query,
         populate: [
-            { path: "userId", select: "name avatar gender" },
+            {
+                path: "userId",
+                select: isExpert ? "+realName name avatar gender" : "name avatar gender",
+            },
             {
                 path: "expertId",
                 select: "userId status pricePerMinute isApproved",

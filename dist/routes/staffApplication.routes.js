@@ -46,6 +46,8 @@ const reviewSchema = zod_1.z.object({
     commissionPercent: zod_1.z.number().min(0).max(100).optional(),
 });
 const router = (0, express_1.Router)();
+/** Public fee for call-button activation (from admin settings). */
+router.get("/apply/fee", staffApplicationController.getFee);
 /** User-facing */
 router.post("/apply", auth_js_1.authenticate, auth_js_1.requireUser, staffApplicationController.apply);
 router.post("/apply/verify-payment", auth_js_1.authenticate, auth_js_1.requireUser, (0, validate_js_1.validate)(user_validator_js_1.verifyPaymentSchema), staffApplicationController.verifyPayment);

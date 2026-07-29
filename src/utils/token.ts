@@ -2,7 +2,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import type { TokenPayload } from "../types/index.js";
 
 const accessExpiresIn = (process.env.ACCESS_TOKEN_EXPIRE || "30m") as SignOptions["expiresIn"];
-const refreshExpiresIn = (process.env.REFRESH_TOKEN_EXPIRE || "7d") as SignOptions["expiresIn"];
+const refreshExpiresIn = (process.env.REFRESH_TOKEN_EXPIRE || "365d") as SignOptions["expiresIn"];
 
 /**
  * Generate a JWT access token.

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getSettings = exports.aiModerateQuestion = exports.moderateQuestion = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.issueRefund = exports.getCommissionReport = exports.listCalls = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.updateExpert = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
+exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.getBannerUploadSignature = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getSettings = exports.aiModerateQuestion = exports.moderateQuestion = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.issueRefund = exports.getCommissionReport = exports.listCalls = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.updateExpert = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
 const adminService = __importStar(require("../services/admin.service.js"));
 const expertService = __importStar(require("../services/expert.service.js"));
 const callService = __importStar(require("../services/call.service.js"));
@@ -44,6 +44,7 @@ const payoutService = __importStar(require("../services/payout.service.js"));
 const notificationService = __importStar(require("../services/notification.service.js"));
 const communityService = __importStar(require("../services/community.service.js"));
 const wallet_service_js_1 = require("../services/wallet.service.js");
+const cloudinary_service_js_1 = require("../services/cloudinary.service.js");
 const Call_js_1 = __importDefault(require("../models/Call.js"));
 const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
@@ -91,8 +92,8 @@ exports.getLiveCalls = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => 
 });
 exports.getCallDetails = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const call = await Call_js_1.default.findById((0, params_js_1.getParam)(req, "id"))
-        .populate("userId", "name phone avatar")
-        .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } });
+        .populate("userId", "+realName name phone avatar")
+        .populate({ path: "expertId", populate: { path: "userId", select: "+realName name avatar" } });
     return (0, response_js_1.sendSuccess)(res, call);
 });
 exports.forceEndCall = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
@@ -207,8 +208,16 @@ exports.listBanners = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
     const banners = await adminService.cmsService.listBanners();
     return (0, response_js_1.sendSuccess)(res, banners);
 });
+exports.getBannerUploadSignature = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
+    const type = req.query.type || "image";
+    const sig = (0, cloudinary_service_js_1.getBannerUploadSignature)(type);
+    return (0, response_js_1.sendSuccess)(res, sig);
+});
 exports.createBanner = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const banner = await adminService.cmsService.createBanner(req.body);
+    const banner = await adminService.cmsService.createBanner({
+        ...req.body,
+        imageUrl: req.body.imageUrl || "",
+    });
     return (0, response_js_1.sendCreated)(res, banner, "Banner created");
 });
 exports.updateBanner = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
@@ -240,7 +249,7 @@ exports.listPublicFaqs = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) =
     return (0, response_js_1.sendSuccess)(res, faqs);
 });
 exports.listPublicBanners = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
-    const banners = await adminService.cmsService.listBanners();
+    const banners = await adminService.cmsService.listPublicBanners();
     return (0, response_js_1.sendSuccess)(res, banners);
 });
 //# sourceMappingURL=admin.controller.js.map

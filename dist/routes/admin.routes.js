@@ -39,6 +39,7 @@ const auth_js_1 = require("../middlewares/auth.js");
 const validate_js_1 = require("../middlewares/validate.js");
 const user_validator_js_1 = require("../validators/user.validator.js");
 const admin_validator_js_1 = require("../validators/admin.validator.js");
+const journal_validator_js_1 = require("../validators/journal.validator.js");
 const router = (0, express_1.Router)();
 // Public CMS content
 router.get("/public/faqs", adminController.listPublicFaqs);
@@ -92,6 +93,7 @@ router.put("/faqs/:id", adminController.updateFaq);
 router.delete("/faqs/:id", adminController.deleteFaq);
 // CMS - Banners
 router.get("/banners", adminController.listBanners);
+router.get("/banners/upload-signature", (0, validate_js_1.validate)(journal_validator_js_1.uploadSignatureQuerySchema, "query"), adminController.getBannerUploadSignature);
 router.post("/banners", (0, validate_js_1.validate)(admin_validator_js_1.createBannerSchema), adminController.createBanner);
 router.put("/banners/:id", adminController.updateBanner);
 router.delete("/banners/:id", adminController.deleteBanner);

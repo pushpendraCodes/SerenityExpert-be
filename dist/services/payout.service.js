@@ -94,7 +94,7 @@ async function getAllPayouts(query) {
         model: Payout_js_1.default,
         filter: {},
         query,
-        populate: { path: "expertId", populate: { path: "userId", select: "name phone email" } },
+        populate: { path: "expertId", populate: { path: "userId", select: "+realName name phone email" } },
         sort: { createdAt: -1 },
     });
 }
@@ -110,7 +110,7 @@ async function getExpertEarningsSummary(expertId) {
     const recentCalls = await Call_js_1.default.find({ expertId, status: index_js_1.CallStatus.COMPLETED })
         .sort({ endedAt: -1 })
         .limit(10)
-        .populate("userId", "name avatar");
+        .populate("userId", "+realName name avatar");
     return {
         totalEarnings: expert.totalEarnings,
         totalCalls: expert.totalCalls,

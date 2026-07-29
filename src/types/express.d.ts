@@ -8,6 +8,8 @@ declare global {
       user?: IUser & { _id: import("mongoose").Types.ObjectId };
       /** Populated by requireExpert middleware */
       expert?: IExpert & { _id: import("mongoose").Types.ObjectId };
+      /** Which portal issued the access token (user | staff) */
+      authPortal?: "user" | "staff";
     }
   }
 }

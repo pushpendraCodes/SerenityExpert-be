@@ -42,9 +42,28 @@ const bannerSchema = new mongoose_1.Schema({
     },
     imageUrl: {
         type: String,
-        required: true,
+        default: "",
+    },
+    videoUrl: {
+        type: String,
+        trim: true,
+    },
+    mediaType: {
+        type: String,
+        enum: ["image", "video"],
+        default: "image",
     },
     link: String,
+    tagline: {
+        type: String,
+        trim: true,
+        maxlength: 200,
+    },
+    badge: {
+        type: String,
+        trim: true,
+        maxlength: 40,
+    },
     position: {
         type: String,
         enum: ["home", "expert_list", "community"],
