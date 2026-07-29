@@ -35,11 +35,6 @@ export const updateStatus = asyncHandler(async (req: Request, res: Response) => 
   return sendSuccess(res, expert, "Status updated");
 });
 
-export const updateAvailability = asyncHandler(async (req: Request, res: Response) => {
-  const expert = await expertService.updateAvailability(req.user!._id.toString(), req.body.availabilitySchedule);
-  return sendSuccess(res, expert, "Availability updated");
-});
-
 export const getDashboard = asyncHandler(async (req: Request, res: Response) => {
   const dashboard = await expertService.getExpertDashboard(req.user!._id.toString());
   return sendSuccess(res, dashboard);

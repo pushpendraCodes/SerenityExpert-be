@@ -16,7 +16,6 @@ import { ConflictError, NotFoundError, ForbiddenError, AuthError } from "../util
 import { phoneLookupVariants, normalizePhone } from "../utils/phone.js";
 import type { PaginationQuery } from "../types/index.js";
 import type { IExpert } from "../models/Expert.js";
-import type { AvailabilitySlot } from "../types/index.js";
 
 /** Admin-only: create expert account (login enabled only after approval). */
 export async function createExpertByAdmin(data: {
@@ -73,7 +72,7 @@ export async function findExpertByMobile(mobile: string): Promise<IExpert | null
 export async function assertExpertCanLogin(mobile: string): Promise<IExpert> {
   const expert = await findExpertByMobile(mobile);
   if (!expert) {
-    throw new AuthError("No expert account found for this mobile number. Contact admin to register.");
+    throw new AuthError("No staff account found for this mobile number. Contact admin to register.");
   }
   if (!expert.isApproved) {
     throw new AuthError("Expert account is pending admin approval");
@@ -241,20 +240,7 @@ export async function updateExpertStatus(userId: string, status: ExpertStatus): 
   return expert;
 }
 
-export async function updateAvailability(
-  userId: string,
-  schedule: AvailabilitySlot[]
-): Promise<IExpert> {
-  const expert = await Expert.findOne({ userId });
-  if (!expert) throw new NotFoundError("Expert profile");
-
-  expert.availabilitySchedule = schedule;
-  await expert.save();
-  return expert;
-}
-
-export async function getExpertDashboard(userId: string) {
-  const expert = await Expert.findOne({ userId }).populate("userId", "name avatar");
+export async function getExpertDashboard(userId: string) {  const expert = await Expert.findOne({ userId }).populate("userId", "name avatar");
   if (!expert) throw new NotFoundError("Expert profile");
 
   const earnings = await getExpertEarningsSummary(expert._id.toString());

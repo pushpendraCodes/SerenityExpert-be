@@ -35,4 +35,7 @@ export const CacheKeys = {
   expertStatus: (expertId: string) => `expert:status:${expertId}`,
   settings: () => "admin:settings",
   liveCalls: () => "admin:live-calls",
+  journalLikesCount: (postId: string) => `journal:likes:count:${postId}`,
+  journalLikedSet: (postId: string) => `journal:liked:${postId}`,
+  notificationQueue: () => "queue:notifications",
 };

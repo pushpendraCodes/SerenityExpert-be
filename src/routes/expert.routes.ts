@@ -5,7 +5,6 @@ import { validate } from "../middlewares/validate.js";
 import {
   updateExpertProfileSchema,
   updateStatusSchema,
-  updateAvailabilitySchema,
   browseExpertsSchema,
 } from "../validators/expert.validator.js";
 import { paginationSchema } from "../validators/user.validator.js";
@@ -25,7 +24,6 @@ expertRouter.use(authenticate, requireUser, requireExpert);
 expertRouter.get("/me/profile", expertController.getMe);
 expertRouter.put("/me", validate(updateExpertProfileSchema), expertController.updateProfile);
 expertRouter.put("/me/status", requireApprovedExpert, validate(updateStatusSchema), expertController.updateStatus);
-expertRouter.put("/me/availability", validate(updateAvailabilitySchema), expertController.updateAvailability);
 expertRouter.get("/me/dashboard", expertController.getDashboard);
 expertRouter.get("/me/earnings", validate(paginationSchema, "query"), expertController.getEarnings);
 

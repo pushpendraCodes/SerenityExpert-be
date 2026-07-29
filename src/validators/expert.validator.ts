@@ -1,12 +1,6 @@
 import { z } from "zod";
 import { ExpertStatus, Gender } from "../types/index.js";
 
-const availabilitySlotSchema = z.object({
-  day: z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/),
-});
-
 export const registerExpertSchema = z.object({
   bio: z.string().max(1000).optional(),
   experience: z.number().min(0).optional(),
@@ -37,10 +31,6 @@ export const updateExpertProfileSchema = z.object({
 
 export const updateStatusSchema = z.object({
   status: z.nativeEnum(ExpertStatus),
-});
-
-export const updateAvailabilitySchema = z.object({
-  availabilitySchedule: z.array(availabilitySlotSchema),
 });
 
 export const browseExpertsSchema = z.object({

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
 import { ExpertStatus } from "../types/index.js";
-import type { AvailabilitySlot, BankDetails } from "../types/index.js";
+import type { BankDetails } from "../types/index.js";
 
 export interface IExpert extends Document {
   _id: Types.ObjectId;
@@ -17,7 +17,6 @@ export interface IExpert extends Document {
   totalMinutes: number;
   totalEarnings: number;
   status: ExpertStatus;
-  availabilitySchedule: AvailabilitySlot[];
   isVerified: boolean;
   isApproved: boolean;
   rejectionReason?: string;
@@ -26,19 +25,6 @@ export interface IExpert extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
-const availabilitySlotSchema = new Schema<AvailabilitySlot>(
-  {
-    day: {
-      type: String,
-      enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-      required: true,
-    },
-    startTime: { type: String, required: true }, // HH:mm
-    endTime: { type: String, required: true },
-  },
-  { _id: false }
-);
 
 const bankDetailsSchema = new Schema<BankDetails>(
   {
@@ -116,10 +102,6 @@ const expertSchema = new Schema<IExpert>(
       type: String,
       enum: Object.values(ExpertStatus),
       default: ExpertStatus.OFFLINE,
-    },
-    availabilitySchedule: {
-      type: [availabilitySlotSchema],
-      default: [],
     },
     isVerified: {
       type: Boolean,

@@ -134,12 +134,6 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-export interface AvailabilitySlot {
-  day: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-  startTime: string; // HH:mm format
-  endTime: string;   // HH:mm format
-}
-
 export interface BankDetails {
   accountName?: string;
   accountNumber?: string;

@@ -3,6 +3,7 @@ import Otp from "../models/Otp.js";
 import { timeoutRingingCalls, timeoutStaleActiveCalls } from "../services/call.service.js";
 import { processWeeklyPayouts } from "../services/payout.service.js";
 import { runRetentionCleanup } from "../services/retention.service.js";
+import { processNotificationQueue } from "../services/journalLike.service.js";
 
 export function startScheduledJobs(): void {
   // Cleanup expired OTPs every hour (belt & suspenders with MongoDB TTL)
@@ -30,6 +31,16 @@ export function startScheduledJobs(): void {
       }
     } catch (err) {
       console.error("Call timeout job failed:", err);
+    }
+  });
+
+  // Drain like/comment notification queue — every 5 seconds
+  cron.schedule("*/5 * * * * *", async () => {
+    try {
+      const n = await processNotificationQueue(40);
+      if (n > 0) console.log(`🔔 Processed ${n} queued notifications`);
+    } catch (err) {
+      console.error("Notification queue job failed:", err);
     }
   });
 

@@ -67,7 +67,7 @@ async function findExpertByMobile(mobile) {
 async function assertExpertCanLogin(mobile) {
     const expert = await findExpertByMobile(mobile);
     if (!expert) {
-        throw new AppError_js_1.AuthError("No expert account found for this mobile number. Contact admin to register.");
+        throw new AppError_js_1.AuthError("No staff account found for this mobile number. Contact admin to register.");
     }
     if (!expert.isApproved) {
         throw new AppError_js_1.AuthError("Expert account is pending admin approval");

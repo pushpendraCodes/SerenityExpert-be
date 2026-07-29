@@ -8,6 +8,7 @@ import { initializeFirebase } from "./config/firebase.js";
 import { configureCloudinary } from "./config/cloudinary.js";
 import { seedDefaultSettings } from "./services/admin.service.js";
 import { ensureNotificationRetentionIndex } from "./services/retention.service.js";
+import { migrateLegacyJournalLikes } from "./services/journalLike.service.js";
 import { startScheduledJobs } from "./jobs/index.js";
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -20,6 +21,13 @@ async function bootstrap(): Promise<void> {
   initializeFirebase();
   await seedDefaultSettings();
   await ensureNotificationRetentionIndex();
+
+  try {
+    const n = await migrateLegacyJournalLikes();
+    if (n > 0) console.log(`❤️ Migrated likes on ${n} journal posts to JournalLike edges`);
+  } catch (err) {
+    console.warn("Journal like migration skipped:", err);
+  }
 
   const httpServer = http.createServer(app);
   initializeSocket(httpServer);
