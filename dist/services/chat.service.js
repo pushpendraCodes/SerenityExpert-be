@@ -9,6 +9,7 @@ exports.getChatMessages = getChatMessages;
 exports.sendMessage = sendMessage;
 exports.markChatAsRead = markChatAsRead;
 exports.closeChat = closeChat;
+const mongoose_1 = __importDefault(require("mongoose"));
 const Chat_js_1 = __importDefault(require("../models/Chat.js"));
 const Message_js_1 = __importDefault(require("../models/Message.js"));
 const Expert_js_1 = __importDefault(require("../models/Expert.js"));
@@ -43,14 +44,14 @@ async function getUserChats(userId, isExpert, query) {
     const filter = isExpert
         ? { expertId: (await Expert_js_1.default.findOne({ userId }))?._id }
         : { userId };
-    return (0, pagination_js_1.paginate)({
+    const result = await (0, pagination_js_1.paginate)({
         model: Chat_js_1.default,
         filter,
         query,
         populate: [
             {
                 path: "userId",
-                select: isExpert ? "+realName name avatar gender" : "name avatar gender",
+                select: "name avatar gender",
             },
             {
                 path: "expertId",
@@ -60,6 +61,31 @@ async function getUserChats(userId, isExpert, query) {
         ],
         sort: { lastMessageAt: -1, updatedAt: -1 },
     });
+    const chatIds = result.data.map((c) => c._id);
+    const unreadMap = new Map();
+    if (chatIds.length > 0) {
+        const viewerOid = new mongoose_1.default.Types.ObjectId(userId);
+        const unreadRows = await Message_js_1.default.aggregate([
+            {
+                $match: {
+                    chatId: { $in: chatIds },
+                    senderId: { $ne: viewerOid },
+                    isRead: false,
+                },
+            },
+            { $group: { _id: "$chatId", count: { $sum: 1 } } },
+        ]);
+        for (const row of unreadRows) {
+            unreadMap.set(String(row._id), row.count);
+        }
+    }
+    return {
+        ...result,
+        data: result.data.map((chat) => ({
+            ...chat,
+            unreadCount: unreadMap.get(String(chat._id)) || 0,
+        })),
+    };
 }
 async function getChatMessages(chatId, userId, query) {
     const chat = await Chat_js_1.default.findById(chatId);
@@ -77,7 +103,7 @@ async function getChatMessages(chatId, userId, query) {
         sort: { createdAt: -1 },
     });
 }
-async function sendMessage(chatId, senderId, senderRole, content, messageType = index_js_1.MessageType.TEXT, imageUrl) {
+async function sendMessage(chatId, senderId, _senderRoleHint, content, messageType = index_js_1.MessageType.TEXT, imageUrl) {
     const chat = await Chat_js_1.default.findById(chatId);
     if (!chat)
         throw new AppError_js_1.NotFoundError("Chat");
@@ -86,6 +112,20 @@ async function sendMessage(chatId, senderId, senderRole, content, messageType = 
     }
     if (!content.trim() && !imageUrl) {
         throw new AppError_js_1.ValidationError("Message content or image is required");
+    }
+    // Role must come from chat participation — dual-portal staff also have an Expert
+    // record, so "has Expert profile" must NOT decide the role (that routed messages
+    // to the wrong person and broke staff realtime unread).
+    const expert = await Expert_js_1.default.findOne({ userId: senderId });
+    let senderRole;
+    if (chat.userId.toString() === senderId) {
+        senderRole = "user";
+    }
+    else if (expert && chat.expertId.toString() === expert._id.toString()) {
+        senderRole = "expert";
+    }
+    else {
+        throw new AppError_js_1.ForbiddenError("Not a participant of this chat");
     }
     const message = await Message_js_1.default.create({
         chatId,
@@ -98,14 +138,18 @@ async function sendMessage(chatId, senderId, senderRole, content, messageType = 
     chat.lastMessage = messageType === index_js_1.MessageType.IMAGE ? "📷 Image" : content.trim();
     chat.lastMessageAt = new Date();
     await chat.save();
-    (0, socket_js_1.emitToChat)(chatId, "message:received", {
+    const payload = {
         chatId,
         message: message.toJSON(),
-    });
+    };
+    // Open thread room (participants who joined this chat)
+    (0, socket_js_1.emitToChat)(chatId, "message:received", payload);
     const recipientId = senderRole === "user"
         ? (await Expert_js_1.default.findById(chat.expertId))?.userId?.toString()
         : chat.userId.toString();
-    if (recipientId) {
+    if (recipientId && recipientId !== senderId) {
+        // Inbox updates even when recipient has not joined the chat room
+        (0, socket_js_1.emitToUser)(recipientId, "message:received", payload);
         await (0, notification_service_js_1.createNotification)(recipientId, "New message", content.trim() ? content.slice(0, 100) : "📷 Image", index_js_1.NotificationType.CHAT, { chatId });
     }
     return message;

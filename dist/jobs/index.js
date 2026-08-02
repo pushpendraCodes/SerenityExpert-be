@@ -9,6 +9,7 @@ const Otp_js_1 = __importDefault(require("../models/Otp.js"));
 const call_service_js_1 = require("../services/call.service.js");
 const payout_service_js_1 = require("../services/payout.service.js");
 const retention_service_js_1 = require("../services/retention.service.js");
+const journalLike_service_js_1 = require("../services/journalLike.service.js");
 function startScheduledJobs() {
     // Cleanup expired OTPs every hour (belt & suspenders with MongoDB TTL)
     node_cron_1.default.schedule("0 * * * *", async () => {
@@ -36,6 +37,17 @@ function startScheduledJobs() {
         }
         catch (err) {
             console.error("Call timeout job failed:", err);
+        }
+    });
+    // Drain like/comment notification queue — every 5 seconds
+    node_cron_1.default.schedule("*/5 * * * * *", async () => {
+        try {
+            const n = await (0, journalLike_service_js_1.processNotificationQueue)(40);
+            if (n > 0)
+                console.log(`🔔 Processed ${n} queued notifications`);
+        }
+        catch (err) {
+            console.error("Notification queue job failed:", err);
         }
     });
     // Weekly expert payouts — every Monday at 6 AM IST (00:30 UTC)

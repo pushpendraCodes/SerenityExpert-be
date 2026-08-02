@@ -1,13 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.browseExpertsSchema = exports.updateAvailabilitySchema = exports.updateStatusSchema = exports.updateExpertProfileSchema = exports.registerExpertSchema = void 0;
+exports.browseExpertsSchema = exports.updateStatusSchema = exports.updateExpertProfileSchema = exports.registerExpertSchema = void 0;
 const zod_1 = require("zod");
 const index_js_1 = require("../types/index.js");
-const availabilitySlotSchema = zod_1.z.object({
-    day: zod_1.z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]),
-    startTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/),
-    endTime: zod_1.z.string().regex(/^\d{2}:\d{2}$/),
-});
 exports.registerExpertSchema = zod_1.z.object({
     bio: zod_1.z.string().max(1000).optional(),
     experience: zod_1.z.number().min(0).optional(),
@@ -36,9 +31,6 @@ exports.updateExpertProfileSchema = zod_1.z.object({
 });
 exports.updateStatusSchema = zod_1.z.object({
     status: zod_1.z.nativeEnum(index_js_1.ExpertStatus),
-});
-exports.updateAvailabilitySchema = zod_1.z.object({
-    availabilitySchedule: zod_1.z.array(availabilitySlotSchema),
 });
 exports.browseExpertsSchema = zod_1.z.object({
     category: zod_1.z.string().optional(),

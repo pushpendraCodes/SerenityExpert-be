@@ -109,10 +109,10 @@ export async function initiateCall(userId: string, expertId: string): Promise<{
 
   const tokens = buildCallTokens(channelName, userId, expertUser._id.toString());
 
-  const caller = await User.findById(userId).select("+realName name avatar");
+  const caller = await User.findById(userId).select("name avatar");
   const incomingPayload = {
     callId: call._id.toString(),
-    callerName: caller?.realName || caller?.name || "User",
+    callerName: caller?.name || "User",
     callerAvatar: caller?.avatar || "",
     pricePerMinute: expert.pricePerMinute,
   };
@@ -247,6 +247,8 @@ function startBillingTimer(callId: string): void {
         elapsed: state.elapsedSeconds,
         cost: userCost,
         balance: remainingBalance,
+        freeSecondsLeft: freeLeft,
+        onFreeTime: freeLeft > 0,
       });
       emitToUser(state.expertUserId, "call:timer", {
         callId,
@@ -254,6 +256,8 @@ function startBillingTimer(callId: string): void {
         cost: grossCost,
         balance: remainingBalance,
         pricePerMinute: state.pricePerMinute,
+        freeSecondsLeft: freeLeft,
+        onFreeTime: freeLeft > 0,
       });
 
       if (freeLeft <= 0 && minsLeft <= LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {

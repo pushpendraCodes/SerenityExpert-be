@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMe = exports.getEarnings = exports.getDashboard = exports.updateAvailability = exports.updateStatus = exports.updateProfile = exports.getCategories = exports.getExpertReviews = exports.getExpertById = exports.browseExperts = void 0;
+exports.getMe = exports.getEarnings = exports.getDashboard = exports.updateStatus = exports.updateProfile = exports.getCategories = exports.getExpertReviews = exports.getExpertById = exports.browseExperts = void 0;
 const expertService = __importStar(require("../services/expert.service.js"));
 const response_js_1 = require("../utils/response.js");
 const asyncHandler_js_1 = require("../utils/asyncHandler.js");
@@ -62,10 +62,6 @@ exports.updateProfile = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => 
 exports.updateStatus = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const expert = await expertService.updateExpertStatus(req.user._id.toString(), req.body.status);
     return (0, response_js_1.sendSuccess)(res, expert, "Status updated");
-});
-exports.updateAvailability = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const expert = await expertService.updateAvailability(req.user._id.toString(), req.body.availabilitySchedule);
-    return (0, response_js_1.sendSuccess)(res, expert, "Availability updated");
 });
 exports.getDashboard = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const dashboard = await expertService.getExpertDashboard(req.user._id.toString());

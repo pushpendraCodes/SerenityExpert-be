@@ -4,6 +4,7 @@ import { verifyOtp } from "./otp.service.js";
 import { assertExpertCanLogin } from "./expert.service.js";
 import { generateTokenPair, verifyRefreshToken } from "../utils/token.js";
 import { generateDummyAvatar, generateDummyUsername, FREE_SECONDS_ON_SIGNUP } from "../utils/constants.js";
+import { getFreeCallingSeconds } from "./admin.service.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/phone.js";
 import { UserRole } from "../types/index.js";
 import { AuthError } from "../utils/AppError.js";
@@ -105,6 +106,7 @@ export async function loginWithOtp(phone: string, otp: string): Promise<AuthResu
 
   if (!user) {
     isNewUser = true;
+    const freeSeconds = await getFreeCallingSeconds(FREE_SECONDS_ON_SIGNUP / 60);
     user = await User.create({
       phone: normalized,
       name: generateDummyUsername(),
@@ -112,7 +114,7 @@ export async function loginWithOtp(phone: string, otp: string): Promise<AuthResu
       isVerified: true,
       role: UserRole.USER,
       profileCompleted: false,
-      freeSecondsRemaining: FREE_SECONDS_ON_SIGNUP,
+      freeSecondsRemaining: freeSeconds,
     });
   } else {
     user.isVerified = true;
@@ -158,6 +160,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResult> {
 
   if (!user) {
     isNewUser = true;
+    const freeSeconds = await getFreeCallingSeconds(FREE_SECONDS_ON_SIGNUP / 60);
     user = await User.create({
       phone: `google_${googleUser.sub.slice(0, 10)}`,
       name: googleUser.name || generateDummyUsername(),
@@ -167,7 +170,7 @@ export async function loginWithGoogle(idToken: string): Promise<AuthResult> {
       isVerified: true,
       role: UserRole.USER,
       profileCompleted: false,
-      freeSecondsRemaining: FREE_SECONDS_ON_SIGNUP,
+      freeSecondsRemaining: freeSeconds,
     });
   } else {
     user.lastLoginAt = new Date();

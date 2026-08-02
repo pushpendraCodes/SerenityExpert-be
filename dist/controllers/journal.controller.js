@@ -64,11 +64,13 @@ exports.deletePost = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
 exports.getFeed = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const discoverRaw = req.query.discover;
     const discover = discoverRaw === true || discoverRaw === "true" || discoverRaw === "1";
+    const mediaType = typeof req.query.mediaType === "string" ? req.query.mediaType : "posts";
     const userId = req.user?._id?.toString();
     const result = await journalService.getFeed(userId, {
         page: req.query.page ? Number(req.query.page) : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         discover: userId ? discover : true,
+        mediaType,
     });
     return (0, response_js_1.sendPaginated)(res, result);
 });
@@ -81,11 +83,11 @@ exports.getMyPosts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getUserPosts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const result = await journalService.getUserPublicPosts((0, params_js_1.getParam)(req, "userId"), req.query);
+    const result = await journalService.getUserPublicPosts((0, params_js_1.getParam)(req, "userId"), req.query, req.user?._id?.toString());
     return (0, response_js_1.sendPaginated)(res, result);
 });
 exports.getPost = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const post = await journalService.getPostById((0, params_js_1.getParam)(req, "id"), req.user?._id?.toString());
+    const post = await journalService.getPostPublic((0, params_js_1.getParam)(req, "id"), req.user?._id?.toString());
     return (0, response_js_1.sendSuccess)(res, post);
 });
 exports.toggleLike = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {

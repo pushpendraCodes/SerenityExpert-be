@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import Story from "../models/Story.js";
 import User from "../models/User.js";
-import Follow from "../models/Follow.js";
 import { deleteAsset, reelThumbnailUrl } from "./cloudinary.service.js";
 import { NotFoundError, ForbiddenError, ValidationError } from "../utils/AppError.js";
 
@@ -62,14 +61,8 @@ export async function createStory(
 }
 
 export async function getStoryFeed(viewerId: string): Promise<StoryGroup[]> {
-  const following = await Follow.find({ followerId: viewerId }).select("followingId");
-  const followingIds = following.map((f) => f.followingId);
-  const authorFilter = {
-    $in: [...followingIds, new mongoose.Types.ObjectId(viewerId)],
-  };
-
+  // Everyone sees all active stories (no following filter)
   const stories = await Story.find({
-    authorId: authorFilter,
     expiresAt: { $gt: new Date() },
   }).sort({ createdAt: 1 });
 

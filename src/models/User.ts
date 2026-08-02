@@ -101,7 +101,7 @@ const userSchema = new Schema<IUser>(
     },
     freeSecondsRemaining: {
       type: Number,
-      default: 300,
+      default: 0,
       min: 0,
     },
     isVerified: {

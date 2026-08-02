@@ -474,18 +474,36 @@ export async function updateSettings(
   settings: Array<{ key: string; value: string; description?: string }>,
   adminId: string
 ): Promise<void> {
+  let freeMinutesUpdate: number | null = null;
+
   for (const setting of settings) {
     await AdminSettings.findOneAndUpdate(
       { key: setting.key },
       { value: setting.value, description: setting.description, updatedBy: adminId },
       { upsert: true }
     );
+    if (setting.key === "free_calling_minutes") {
+      const n = Number(setting.value);
+      if (Number.isFinite(n) && n >= 0) freeMinutesUpdate = Math.floor(n);
+    }
+  }
+
+  // Cap leftover free seconds so the website matches the new setting (not old signup grants)
+  if (freeMinutesUpdate != null) {
+    const newSeconds = freeMinutesUpdate * 60;
+    await User.updateMany(
+      { freeSecondsRemaining: { $gt: newSeconds } },
+      { $set: { freeSecondsRemaining: newSeconds } }
+    );
   }
 }
 
 export async function getSettingValue(key: string, defaultValue: string): Promise<string> {
-  const setting = await AdminSettings.findOne({ key });
-  return setting?.value ?? defaultValue;
+  const setting = await AdminSettings.findOne({ key }).lean();
+  if (setting?.value === undefined || setting?.value === null || setting.value === "") {
+    return defaultValue;
+  }
+  return String(setting.value).trim();
 }
 
 export async function getDefaultPricePerMinute(): Promise<number> {
@@ -605,6 +623,11 @@ export async function seedDefaultSettings(): Promise<void> {
       value: "999",
       description: "One-time payment (INR) for users to activate the call button / staff application",
     },
+    {
+      key: "free_calling_minutes",
+      value: "5",
+      description: "Free voice call minutes granted to each new user on signup",
+    },
   ];
 
   for (const setting of defaults) {
@@ -625,4 +648,22 @@ export async function getRetentionDays(
   const days = Number(raw);
   if (!Number.isFinite(days) || days < 1) return fallback;
   return Math.floor(days);
+}
+
+/** Free call minutes granted to new users (admin setting). */
+export async function getFreeCallingMinutes(fallback = 5): Promise<number> {
+  const raw = await getSettingValue("free_calling_minutes", String(fallback));
+  const minutes = Number(raw);
+  if (!Number.isFinite(minutes) || minutes < 0) return fallback;
+  return Math.floor(minutes);
+}
+
+export async function getFreeCallingSeconds(fallbackMinutes = 5): Promise<number> {
+  const minutes = await getFreeCallingMinutes(fallbackMinutes);
+  return minutes * 60;
+}
+
+/** Safe public platform config for the user website. */
+export async function getPublicConfig(): Promise<{ freeCallingMinutes: number }> {
+  return { freeCallingMinutes: await getFreeCallingMinutes() };
 }

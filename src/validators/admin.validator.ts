@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DiscountType } from "../types/index.js";
+import { DiscountType, Gender } from "../types/index.js";
 
 export const manageUserSchema = z.object({
   isBlocked: z.boolean().optional(),
@@ -22,7 +22,20 @@ const optionalBankDetailsSchema = z.object({
 
 export const createExpertSchema = z.object({
   mobile: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid mobile number"),
+  /** Public display / dummy handle shown on calls & website */
   name: z.string().min(2).max(100),
+  realName: z.string().min(2).max(100),
+  gender: z.nativeEnum(Gender),
+  dob: z
+    .string()
+    .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid date of birth")
+    .refine((v) => {
+      const age = (Date.now() - new Date(v).getTime()) / (365.25 * 24 * 3600 * 1000);
+      return age >= 13 && age <= 120;
+    }, "Staff must be at least 13 years old"),
+  country: z.string().min(2).max(100),
+  city: z.string().min(2).max(100),
+  state: z.string().min(2).max(100),
   bio: z.string().max(1000).optional(),
   experience: z.number().min(0).optional(),
   categories: z.array(z.string()).optional(),
@@ -30,6 +43,7 @@ export const createExpertSchema = z.object({
   pricePerMinute: z.number().min(0).optional(),
   commissionPercent: z.number().min(0).max(100).optional(),
   bankDetails: optionalBankDetailsSchema,
+  approveImmediately: z.boolean().optional(),
 });
 
 export const updateExpertSchema = z.object({

@@ -10,7 +10,6 @@ exports.deleteStory = deleteStory;
 const mongoose_1 = __importDefault(require("mongoose"));
 const Story_js_1 = __importDefault(require("../models/Story.js"));
 const User_js_1 = __importDefault(require("../models/User.js"));
-const Follow_js_1 = __importDefault(require("../models/Follow.js"));
 const cloudinary_service_js_1 = require("./cloudinary.service.js");
 const AppError_js_1 = require("../utils/AppError.js");
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -37,13 +36,8 @@ async function createStory(authorId, data) {
     });
 }
 async function getStoryFeed(viewerId) {
-    const following = await Follow_js_1.default.find({ followerId: viewerId }).select("followingId");
-    const followingIds = following.map((f) => f.followingId);
-    const authorFilter = {
-        $in: [...followingIds, new mongoose_1.default.Types.ObjectId(viewerId)],
-    };
+    // Everyone sees all active stories (no following filter)
     const stories = await Story_js_1.default.find({
-        authorId: authorFilter,
         expiresAt: { $gt: new Date() },
     }).sort({ createdAt: 1 });
     const byAuthor = new Map();

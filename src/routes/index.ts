@@ -11,6 +11,7 @@ import followRoutes from "./follow.routes.js";
 import storyRoutes from "./story.routes.js";
 import staffApplicationRoutes from "./staffApplication.routes.js";
 import adminRoutes from "./admin.routes.js";
+import * as adminController from "../controllers/admin.controller.js";
 
 const router = Router();
 
@@ -27,5 +28,8 @@ router.use("/stories", storyRoutes);
 router.use("/follow", followRoutes);
 router.use("/community", communityRoutes); // Deprecated — remove after FE cutover
 router.use("/admin", adminRoutes);
+
+// Public platform config (mirrors /admin/public/config)
+router.get("/public/config", adminController.getPublicConfig);
 
 export default router;

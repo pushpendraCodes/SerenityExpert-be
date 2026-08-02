@@ -39,5 +39,8 @@ exports.CacheKeys = {
     expertStatus: (expertId) => `expert:status:${expertId}`,
     settings: () => "admin:settings",
     liveCalls: () => "admin:live-calls",
+    journalLikesCount: (postId) => `journal:likes:count:${postId}`,
+    journalLikedSet: (postId) => `journal:liked:${postId}`,
+    notificationQueue: () => "queue:notifications",
 };
 //# sourceMappingURL=cache.service.js.map

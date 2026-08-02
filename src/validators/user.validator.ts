@@ -3,7 +3,6 @@ import { MIN_RECHARGE_AMOUNT, MAX_RECHARGE_AMOUNT } from "../utils/constants.js"
 import { Gender } from "../types/index.js";
 
 export const updateProfileSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
   gender: z.nativeEnum(Gender).optional(),
   country: z.string().min(2).max(100).optional(),

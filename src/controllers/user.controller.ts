@@ -27,9 +27,9 @@ export const getMe = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateProfile = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, gender, country, city, state } = req.body;
+  const { email, gender, country, city, state } = req.body;
   const updates: Record<string, unknown> = {};
-  if (name) updates.name = name;
+  // Public handle (`name`) is immutable after signup
   if (email) updates.email = email;
   if (gender) updates.gender = gender;
   if (country) updates.country = country;

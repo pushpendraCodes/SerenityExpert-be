@@ -80,10 +80,10 @@ async function initiateCall(userId, expertId) {
     expert.status = index_js_1.ExpertStatus.BUSY;
     await expert.save();
     const tokens = (0, agora_service_js_1.buildCallTokens)(channelName, userId, expertUser._id.toString());
-    const caller = await User_js_1.default.findById(userId).select("+realName name avatar");
+    const caller = await User_js_1.default.findById(userId).select("name avatar");
     const incomingPayload = {
         callId: call._id.toString(),
-        callerName: caller?.realName || caller?.name || "User",
+        callerName: caller?.name || "User",
         callerAvatar: caller?.avatar || "",
         pricePerMinute: expert.pricePerMinute,
     };
@@ -187,6 +187,8 @@ function startBillingTimer(callId) {
                 elapsed: state.elapsedSeconds,
                 cost: userCost,
                 balance: remainingBalance,
+                freeSecondsLeft: freeLeft,
+                onFreeTime: freeLeft > 0,
             });
             (0, socket_js_1.emitToUser)(state.expertUserId, "call:timer", {
                 callId,
@@ -194,6 +196,8 @@ function startBillingTimer(callId) {
                 cost: grossCost,
                 balance: remainingBalance,
                 pricePerMinute: state.pricePerMinute,
+                freeSecondsLeft: freeLeft,
+                onFreeTime: freeLeft > 0,
             });
             if (freeLeft <= 0 && minsLeft <= constants_js_1.LOW_BALANCE_WARNING_MINUTES && remainingBalance > 0) {
                 console.log(`⚠️ Low balance warning for call ${callId}: balance=${remainingBalance}, minsLeft=${minsLeft}`);

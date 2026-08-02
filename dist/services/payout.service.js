@@ -110,7 +110,7 @@ async function getExpertEarningsSummary(expertId) {
     const recentCalls = await Call_js_1.default.find({ expertId, status: index_js_1.CallStatus.COMPLETED })
         .sort({ endedAt: -1 })
         .limit(10)
-        .populate("userId", "+realName name avatar");
+        .populate("userId", "name avatar");
     return {
         totalEarnings: expert.totalEarnings,
         totalCalls: expert.totalCalls,

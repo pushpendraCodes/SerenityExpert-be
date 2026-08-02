@@ -44,6 +44,7 @@ const router = (0, express_1.Router)();
 // Public CMS content
 router.get("/public/faqs", adminController.listPublicFaqs);
 router.get("/public/banners", adminController.listPublicBanners);
+router.get("/public/config", adminController.getPublicConfig);
 router.use(auth_js_1.authenticate, auth_js_1.requireAdmin);
 // Dashboard
 router.get("/dashboard", adminController.getDashboard);

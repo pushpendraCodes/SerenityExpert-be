@@ -21,7 +21,20 @@ const optionalBankDetailsSchema = zod_1.z.object({
 }).optional();
 exports.createExpertSchema = zod_1.z.object({
     mobile: zod_1.z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid mobile number"),
+    /** Public display / dummy handle shown on calls & website */
     name: zod_1.z.string().min(2).max(100),
+    realName: zod_1.z.string().min(2).max(100),
+    gender: zod_1.z.nativeEnum(index_js_1.Gender),
+    dob: zod_1.z
+        .string()
+        .refine((v) => !Number.isNaN(Date.parse(v)), "Invalid date of birth")
+        .refine((v) => {
+        const age = (Date.now() - new Date(v).getTime()) / (365.25 * 24 * 3600 * 1000);
+        return age >= 13 && age <= 120;
+    }, "Staff must be at least 13 years old"),
+    country: zod_1.z.string().min(2).max(100),
+    city: zod_1.z.string().min(2).max(100),
+    state: zod_1.z.string().min(2).max(100),
     bio: zod_1.z.string().max(1000).optional(),
     experience: zod_1.z.number().min(0).optional(),
     categories: zod_1.z.array(zod_1.z.string()).optional(),
@@ -29,6 +42,7 @@ exports.createExpertSchema = zod_1.z.object({
     pricePerMinute: zod_1.z.number().min(0).optional(),
     commissionPercent: zod_1.z.number().min(0).max(100).optional(),
     bankDetails: optionalBankDetailsSchema,
+    approveImmediately: zod_1.z.boolean().optional(),
 });
 exports.updateExpertSchema = zod_1.z.object({
     name: zod_1.z.string().min(2).max(100).optional(),

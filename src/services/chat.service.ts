@@ -1,14 +1,17 @@
+import mongoose from "mongoose";
 import Chat from "../models/Chat.js";
 import Message from "../models/Message.js";
 import Expert from "../models/Expert.js";
-import { emitToChat } from "../config/socket.js";
+import { emitToChat, emitToUser } from "../config/socket.js";
 import { createNotification } from "./notification.service.js";
 import { paginate } from "../utils/pagination.js";
 import { ChatStatus, MessageType, NotificationType } from "../types/index.js";
 import { NotFoundError, ForbiddenError, ValidationError } from "../utils/AppError.js";
-import type { PaginationQuery } from "../types/index.js";
+import type { PaginationQuery, PaginatedResult } from "../types/index.js";
 import type { IChat } from "../models/Chat.js";
 import type { IMessage } from "../models/Message.js";
+
+type ChatListItem = Record<string, unknown> & { unreadCount: number };
 
 export async function getOrCreateChat(userId: string, expertId: string): Promise<IChat> {
   const expert = await Expert.findOne({ _id: expertId, isApproved: true });
@@ -37,19 +40,23 @@ export async function getOrCreateChat(userId: string, expertId: string): Promise
   return (populated || chat) as IChat;
 }
 
-export async function getUserChats(userId: string, isExpert: boolean, query: PaginationQuery) {
+export async function getUserChats(
+  userId: string,
+  isExpert: boolean,
+  query: PaginationQuery
+): Promise<PaginatedResult<ChatListItem>> {
   const filter = isExpert
     ? { expertId: (await Expert.findOne({ userId }))?._id }
     : { userId };
 
-  return paginate({
+  const result = await paginate({
     model: Chat,
     filter,
     query,
     populate: [
       {
         path: "userId",
-        select: isExpert ? "+realName name avatar gender" : "name avatar gender",
+        select: "name avatar gender",
       },
       {
         path: "expertId",
@@ -59,6 +66,34 @@ export async function getUserChats(userId: string, isExpert: boolean, query: Pag
     ],
     sort: { lastMessageAt: -1, updatedAt: -1 },
   });
+
+  const chatIds = result.data.map((c) => c._id);
+  const unreadMap = new Map<string, number>();
+
+  if (chatIds.length > 0) {
+    const viewerOid = new mongoose.Types.ObjectId(userId);
+    const unreadRows = await Message.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
+      {
+        $match: {
+          chatId: { $in: chatIds },
+          senderId: { $ne: viewerOid },
+          isRead: false,
+        },
+      },
+      { $group: { _id: "$chatId", count: { $sum: 1 } } },
+    ]);
+    for (const row of unreadRows) {
+      unreadMap.set(String(row._id), row.count);
+    }
+  }
+
+  return {
+    ...result,
+    data: result.data.map((chat) => ({
+      ...(chat as unknown as Record<string, unknown>),
+      unreadCount: unreadMap.get(String(chat._id)) || 0,
+    })),
+  };
 }
 
 export async function getChatMessages(
@@ -87,7 +122,7 @@ export async function getChatMessages(
 export async function sendMessage(
   chatId: string,
   senderId: string,
-  senderRole: "user" | "expert",
+  _senderRoleHint: "user" | "expert",
   content: string,
   messageType: MessageType = MessageType.TEXT,
   imageUrl?: string
@@ -100,6 +135,19 @@ export async function sendMessage(
 
   if (!content.trim() && !imageUrl) {
     throw new ValidationError("Message content or image is required");
+  }
+
+  // Role must come from chat participation — dual-portal staff also have an Expert
+  // record, so "has Expert profile" must NOT decide the role (that routed messages
+  // to the wrong person and broke staff realtime unread).
+  const expert = await Expert.findOne({ userId: senderId });
+  let senderRole: "user" | "expert";
+  if (chat.userId.toString() === senderId) {
+    senderRole = "user";
+  } else if (expert && chat.expertId.toString() === expert._id.toString()) {
+    senderRole = "expert";
+  } else {
+    throw new ForbiddenError("Not a participant of this chat");
   }
 
   const message = await Message.create({
@@ -115,16 +163,22 @@ export async function sendMessage(
   chat.lastMessageAt = new Date();
   await chat.save();
 
-  emitToChat(chatId, "message:received", {
+  const payload = {
     chatId,
     message: message.toJSON(),
-  });
+  };
 
-  const recipientId = senderRole === "user"
-    ? (await Expert.findById(chat.expertId))?.userId?.toString()
-    : chat.userId.toString();
+  // Open thread room (participants who joined this chat)
+  emitToChat(chatId, "message:received", payload);
 
-  if (recipientId) {
+  const recipientId =
+    senderRole === "user"
+      ? (await Expert.findById(chat.expertId))?.userId?.toString()
+      : chat.userId.toString();
+
+  if (recipientId && recipientId !== senderId) {
+    // Inbox updates even when recipient has not joined the chat room
+    emitToUser(recipientId, "message:received", payload);
     await createNotification(
       recipientId,
       "New message",

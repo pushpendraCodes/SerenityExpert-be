@@ -103,7 +103,7 @@ const userSchema = new mongoose_1.Schema({
     },
     freeSecondsRemaining: {
         type: Number,
-        default: 300,
+        default: 0,
         min: 0,
     },
     isVerified: {

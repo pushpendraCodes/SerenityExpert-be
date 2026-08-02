@@ -13,6 +13,7 @@ const firebase_js_1 = require("./config/firebase.js");
 const cloudinary_js_1 = require("./config/cloudinary.js");
 const admin_service_js_1 = require("./services/admin.service.js");
 const retention_service_js_1 = require("./services/retention.service.js");
+const journalLike_service_js_1 = require("./services/journalLike.service.js");
 const index_js_1 = require("./jobs/index.js");
 const PORT = Number(process.env.PORT) || 5000;
 async function bootstrap() {
@@ -22,6 +23,14 @@ async function bootstrap() {
     (0, firebase_js_1.initializeFirebase)();
     await (0, admin_service_js_1.seedDefaultSettings)();
     await (0, retention_service_js_1.ensureNotificationRetentionIndex)();
+    try {
+        const n = await (0, journalLike_service_js_1.migrateLegacyJournalLikes)();
+        if (n > 0)
+            console.log(`❤️ Migrated likes on ${n} journal posts to JournalLike edges`);
+    }
+    catch (err) {
+        console.warn("Journal like migration skipped:", err);
+    }
     const httpServer = http_1.default.createServer(app_js_1.default);
     (0, socket_js_1.initializeSocket)(httpServer);
     (0, index_js_1.startScheduledJobs)();

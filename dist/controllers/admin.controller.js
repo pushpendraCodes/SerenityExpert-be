@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.getBannerUploadSignature = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getSettings = exports.aiModerateQuestion = exports.moderateQuestion = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.issueRefund = exports.getCommissionReport = exports.listCalls = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.updateExpert = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
+exports.listPublicBanners = exports.listPublicFaqs = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.listCoupons = exports.deleteBanner = exports.updateBanner = exports.createBanner = exports.getBannerUploadSignature = exports.listBanners = exports.deleteFaq = exports.updateFaq = exports.createFaq = exports.listFaqs = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.listCategories = exports.sendPushNotification = exports.updateSettings = exports.getPublicConfig = exports.getSettings = exports.aiModerateQuestion = exports.moderateQuestion = exports.deleteComment = exports.deleteQuestion = exports.getCommunityContent = exports.resolveReport = exports.getReports = exports.processPayouts = exports.getPayouts = exports.issueRefund = exports.getCommissionReport = exports.listCalls = exports.getTransactions = exports.forceEndCall = exports.getCallDetails = exports.getLiveCalls = exports.updateExpert = exports.approveExpert = exports.createExpert = exports.listExperts = exports.adjustUserWallet = exports.updateUser = exports.listUsers = exports.getAnalytics = exports.getDashboard = void 0;
 const adminService = __importStar(require("../services/admin.service.js"));
 const expertService = __importStar(require("../services/expert.service.js"));
 const callService = __importStar(require("../services/call.service.js"));
@@ -76,7 +76,10 @@ exports.listExperts = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
 });
 exports.createExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const expert = await expertService.createExpertByAdmin(req.body);
-    return (0, response_js_1.sendCreated)(res, expert, "Expert created. Approve to enable login.");
+    const msg = expert.isApproved
+        ? "Staff created and approved — they can log in to the staff portal."
+        : "Staff created — approve them to enable staff portal login.";
+    return (0, response_js_1.sendCreated)(res, expert, msg);
 });
 exports.approveExpert = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const expert = await adminService.approveExpert((0, params_js_1.getParam)(req, "id"), req.body);
@@ -155,6 +158,10 @@ exports.aiModerateQuestion = (0, asyncHandler_js_1.asyncHandler)(async (req, res
 exports.getSettings = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
     const settings = await adminService.getSettings();
     return (0, response_js_1.sendSuccess)(res, settings);
+});
+exports.getPublicConfig = (0, asyncHandler_js_1.asyncHandler)(async (_req, res) => {
+    const config = await adminService.getPublicConfig();
+    return (0, response_js_1.sendSuccess)(res, config);
 });
 exports.updateSettings = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     await adminService.updateSettings(req.body.settings, req.user._id.toString());

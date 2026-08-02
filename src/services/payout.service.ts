@@ -133,7 +133,7 @@ export async function getExpertEarningsSummary(expertId: string) {
   const recentCalls = await Call.find({ expertId, status: CallStatus.COMPLETED })
     .sort({ endedAt: -1 })
     .limit(10)
-    .populate("userId", "+realName name avatar");
+    .populate("userId", "name avatar");
 
   return {
     totalEarnings: expert.totalEarnings,

@@ -182,7 +182,14 @@ export interface ServerToClientEvents {
     endReason?: string;
     recordingUrl?: string;
   }) => void;
-  "call:timer": (data: { callId: string; elapsed: number; cost: number; balance: number }) => void;
+  "call:timer": (data: {
+    callId: string;
+    elapsed: number;
+    cost: number;
+    balance: number;
+    freeSecondsLeft?: number;
+    onFreeTime?: boolean;
+  }) => void;
   "call:low-balance": (data: { callId: string; balance: number; minutesRemaining: number }) => void;
   "call:recording-ready": (data: { callId: string; recordingUrl: string }) => void;
   "expert:status-changed": (data: { expertId: string; status: ExpertStatus }) => void;

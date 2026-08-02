@@ -2,7 +2,6 @@ import JournalPost from "../models/JournalPost.js";
 import JournalComment from "../models/JournalComment.js";
 import JournalLike from "../models/JournalLike.js";
 import User from "../models/User.js";
-import Follow from "../models/Follow.js";
 import { ensureContentSafe } from "./moderation.service.js";
 import {
   deleteLikesForPost,
@@ -160,8 +159,6 @@ export async function getFeed(
   userId: string | undefined,
   query: PaginationQuery & { discover?: boolean; mediaType?: string }
 ) {
-  const discover = userId ? query.discover !== false : true;
-
   const filter: Record<string, unknown> = {
     isDeleted: false,
     visibility: JournalVisibility.PUBLIC,
@@ -175,19 +172,13 @@ export async function getFeed(
     filter.mediaType = { $ne: JournalMediaType.REEL };
   }
 
-  if (!discover && userId) {
-    const following = await Follow.find({ followerId: userId }).select("followingId");
-    const followingIds = following.map((f) => f.followingId);
-    filter.authorId = { $in: [...followingIds, new mongoose.Types.ObjectId(userId)] };
-  }
-
+  // Everyone sees all public posts (no following filter; anonymous — no author populate)
   const result = await paginate({
     model: JournalPost,
     filter,
     query,
     select: FEED_SELECT,
     sort: { createdAt: -1 },
-    populate: { path: "authorId", select: "name avatar city state country" },
   });
   return decoratePaginated(result, userId);
 }
@@ -221,22 +212,11 @@ export async function getMyPosts(
 
 /** Public posts only for another user's profile */
 export async function getUserPublicPosts(
-  targetUserId: string,
-  query: PaginationQuery,
-  viewerId?: string
-) {
-  const result = await paginate({
-    model: JournalPost,
-    filter: {
-      authorId: targetUserId,
-      isDeleted: false,
-      visibility: JournalVisibility.PUBLIC,
-    },
-    query,
-    select: FEED_SELECT,
-    sort: { createdAt: -1 },
-  });
-  return decoratePaginated(result, viewerId);
+  _targetUserId: string,
+  _query: PaginationQuery,
+  _viewerId?: string
+): Promise<never> {
+  throw new ForbiddenError("Public user profiles are disabled");
 }
 
 export async function getPostById(postId: string, viewerId?: string): Promise<IJournalPost> {
@@ -378,24 +358,6 @@ export async function getComments(postId: string, viewerId: string | undefined, 
   });
 }
 
-export async function getPublicProfile(userId: string, viewerId?: string) {
-  const user = await User.findById(userId).select(
-    "name avatar city state country gender createdAt profileCompleted"
-  );
-  if (!user) throw new NotFoundError("User");
-
-  const [followersCount, followingCount, isFollowing] = await Promise.all([
-    Follow.countDocuments({ followingId: userId }),
-    Follow.countDocuments({ followerId: userId }),
-    viewerId
-      ? Follow.exists({ followerId: viewerId, followingId: userId }).then(Boolean)
-      : Promise.resolve(false),
-  ]);
-
-  return {
-    ...user.toJSON(),
-    followersCount,
-    followingCount,
-    isFollowing,
-  };
+export async function getPublicProfile(_userId: string, _viewerId?: string): Promise<never> {
+  throw new ForbiddenError("Public user profiles are disabled");
 }

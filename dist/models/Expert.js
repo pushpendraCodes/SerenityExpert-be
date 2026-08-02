@@ -35,15 +35,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const index_js_1 = require("../types/index.js");
-const availabilitySlotSchema = new mongoose_1.Schema({
-    day: {
-        type: String,
-        enum: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-        required: true,
-    },
-    startTime: { type: String, required: true }, // HH:mm
-    endTime: { type: String, required: true },
-}, { _id: false });
 const bankDetailsSchema = new mongoose_1.Schema({
     accountName: { type: String, trim: true },
     accountNumber: { type: String, trim: true },
@@ -115,10 +106,6 @@ const expertSchema = new mongoose_1.Schema({
         type: String,
         enum: Object.values(index_js_1.ExpertStatus),
         default: index_js_1.ExpertStatus.OFFLINE,
-    },
-    availabilitySchedule: {
-        type: [availabilitySlotSchema],
-        default: [],
     },
     isVerified: {
         type: Boolean,

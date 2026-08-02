@@ -61,10 +61,9 @@ exports.getMe = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     });
 });
 exports.updateProfile = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
-    const { name, email, gender, country, city, state } = req.body;
+    const { email, gender, country, city, state } = req.body;
     const updates = {};
-    if (name)
-        updates.name = name;
+    // Public handle (`name`) is immutable after signup
     if (email)
         updates.email = email;
     if (gender)

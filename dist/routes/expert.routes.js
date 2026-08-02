@@ -51,7 +51,6 @@ expertRouter.use(auth_js_1.authenticate, auth_js_1.requireUser, auth_js_1.requir
 expertRouter.get("/me/profile", expertController.getMe);
 expertRouter.put("/me", (0, validate_js_1.validate)(expert_validator_js_1.updateExpertProfileSchema), expertController.updateProfile);
 expertRouter.put("/me/status", auth_js_1.requireApprovedExpert, (0, validate_js_1.validate)(expert_validator_js_1.updateStatusSchema), expertController.updateStatus);
-expertRouter.put("/me/availability", (0, validate_js_1.validate)(expert_validator_js_1.updateAvailabilitySchema), expertController.updateAvailability);
 expertRouter.get("/me/dashboard", expertController.getDashboard);
 expertRouter.get("/me/earnings", (0, validate_js_1.validate)(user_validator_js_1.paginationSchema, "query"), expertController.getEarnings);
 router.use(expertRouter);

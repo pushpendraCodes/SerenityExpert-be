@@ -11,55 +11,98 @@ import {
 import { getExpertEarningsSummary, getExpertPayouts } from "./payout.service.js";
 import { paginate } from "../utils/pagination.js";
 import { ExpertStatus, UserRole, Gender } from "../types/index.js";
-import { generateDummyAvatar } from "../utils/constants.js";
+import { generateDummyAvatar, generateDummyUsername } from "../utils/constants.js";
 import { ConflictError, NotFoundError, ForbiddenError, AuthError } from "../utils/AppError.js";
 import { phoneLookupVariants, normalizePhone } from "../utils/phone.js";
 import type { PaginationQuery } from "../types/index.js";
 import type { IExpert } from "../models/Expert.js";
 
-/** Admin-only: create expert account (login enabled only after approval). */
+/** Admin-only: create staff account (approved by default so they can log in to staff portal). */
 export async function createExpertByAdmin(data: {
   mobile: string;
+  /** Public dummy / display name */
   name: string;
+  realName?: string;
+  gender?: Gender;
+  dob?: string;
+  country?: string;
+  city?: string;
+  state?: string;
   bio?: string;
   experience?: number;
-  categories: string[];
+  categories?: string[];
   languages?: string[];
   pricePerMinute?: number;
   commissionPercent?: number;
   bankDetails?: IExpert["bankDetails"];
+  /** Default true — admin-created staff can log in immediately */
+  approveImmediately?: boolean;
 }): Promise<IExpert> {
   const normalizedMobile = normalizePhone(data.mobile);
-  const existingExpert = await Expert.findOne({ mobile: { $in: phoneLookupVariants(data.mobile) } });
-  if (existingExpert) throw new ConflictError("Expert with this mobile number already exists");
+  const existingExpert = await Expert.findOne({
+    mobile: { $in: phoneLookupVariants(data.mobile) },
+  });
+  if (existingExpert) throw new ConflictError("Staff with this mobile number already exists");
 
-  const existingUser = await User.findOne({ phone: { $in: phoneLookupVariants(data.mobile) } });
-  if (existingUser) throw new ConflictError("Mobile number already registered");
-
-  const defaultPrice = data.pricePerMinute ?? await getDefaultPricePerMinute();
-  const defaultCommission = data.commissionPercent ?? await getDefaultCommission();
+  const defaultPrice = data.pricePerMinute ?? (await getDefaultPricePerMinute());
+  const defaultCommission = data.commissionPercent ?? (await getDefaultCommission());
   await assertPriceWithinLimits(defaultPrice);
 
-  const user = await User.create({
-    phone: normalizedMobile,
-    name: data.name,
-    avatar: generateDummyAvatar(normalizedMobile),
-    isVerified: false,
-    role: UserRole.USER,
-  });
+  const dummyName = (data.name || "").trim() || generateDummyUsername();
+  const realName = data.realName?.trim() || undefined;
+  const gender = data.gender;
+  const dob = data.dob ? new Date(data.dob) : undefined;
+  const country = data.country?.trim() || undefined;
+  const city = data.city?.trim() || undefined;
+  const state = data.state?.trim() || undefined;
+  const profileCompleted = Boolean(realName && gender && dob && country && city && state);
+
+  // Dual portal: reuse existing user account if this phone already signed up on the website
+  let user = await User.findOne({ phone: { $in: phoneLookupVariants(data.mobile) } });
+  if (!user) {
+    user = await User.create({
+      phone: normalizedMobile,
+      name: dummyName,
+      realName,
+      gender,
+      dob,
+      country,
+      city,
+      state,
+      avatar: generateDummyAvatar(dummyName || normalizedMobile),
+      isVerified: true,
+      role: UserRole.USER,
+      profileCompleted,
+    });
+  } else {
+    const linked = await Expert.findOne({ userId: user._id });
+    if (linked) throw new ConflictError("This user already has a staff profile");
+    if (dummyName && user.name !== dummyName) user.name = dummyName;
+    if (realName) user.realName = realName;
+    if (gender) user.gender = gender;
+    if (dob) user.dob = dob;
+    if (country) user.country = country;
+    if (city) user.city = city;
+    if (state) user.state = state;
+    if (profileCompleted) user.profileCompleted = true;
+    await user.save();
+  }
+
+  const approve = data.approveImmediately !== false;
 
   const expert = await Expert.create({
     userId: user._id,
     mobile: normalizedMobile,
     bio: data.bio || "",
     experience: data.experience || 0,
-    categories: data.categories,
+    categories: data.categories || [],
     languages: data.languages || ["English"],
     pricePerMinute: defaultPrice,
     commissionPercent: defaultCommission,
     bankDetails: data.bankDetails,
-    isApproved: false,
-    isVerified: false,
+    status: ExpertStatus.OFFLINE,
+    isApproved: approve,
+    isVerified: approve,
   });
 
   return expert;

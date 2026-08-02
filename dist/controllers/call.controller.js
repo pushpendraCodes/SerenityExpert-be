@@ -73,7 +73,7 @@ exports.endCall = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
 exports.getCall = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
     const expert = await Expert_js_1.default.findOne({ userId: req.user._id });
     const call = await Call_js_1.default.findById((0, params_js_1.getParam)(req, "id"))
-        .populate("userId", expert ? "+realName name avatar" : "name avatar")
+        .populate("userId", "name avatar")
         .populate({ path: "expertId", populate: { path: "userId", select: "name avatar" } });
     return (0, response_js_1.sendSuccess)(res, call);
 });
@@ -87,7 +87,7 @@ exports.getHistory = (0, asyncHandler_js_1.asyncHandler)(async (req, res) => {
         filter,
         query: req.query,
         populate: expert
-            ? { path: "userId", select: "+realName name avatar" }
+            ? { path: "userId", select: "name avatar" }
             : { path: "expertId", populate: { path: "userId", select: "name avatar" } },
         sort: { createdAt: -1 },
     });

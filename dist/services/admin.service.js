@@ -28,6 +28,9 @@ exports.getPriceLimits = getPriceLimits;
 exports.assertPriceWithinLimits = assertPriceWithinLimits;
 exports.seedDefaultSettings = seedDefaultSettings;
 exports.getRetentionDays = getRetentionDays;
+exports.getFreeCallingMinutes = getFreeCallingMinutes;
+exports.getFreeCallingSeconds = getFreeCallingSeconds;
+exports.getPublicConfig = getPublicConfig;
 const User_js_1 = __importDefault(require("../models/User.js"));
 const Expert_js_1 = __importDefault(require("../models/Expert.js"));
 const Call_js_1 = __importDefault(require("../models/Call.js"));
@@ -422,13 +425,27 @@ async function getSettings() {
     return map;
 }
 async function updateSettings(settings, adminId) {
+    let freeMinutesUpdate = null;
     for (const setting of settings) {
         await AdminSettings_js_1.default.findOneAndUpdate({ key: setting.key }, { value: setting.value, description: setting.description, updatedBy: adminId }, { upsert: true });
+        if (setting.key === "free_calling_minutes") {
+            const n = Number(setting.value);
+            if (Number.isFinite(n) && n >= 0)
+                freeMinutesUpdate = Math.floor(n);
+        }
+    }
+    // Cap leftover free seconds so the website matches the new setting (not old signup grants)
+    if (freeMinutesUpdate != null) {
+        const newSeconds = freeMinutesUpdate * 60;
+        await User_js_1.default.updateMany({ freeSecondsRemaining: { $gt: newSeconds } }, { $set: { freeSecondsRemaining: newSeconds } });
     }
 }
 async function getSettingValue(key, defaultValue) {
-    const setting = await AdminSettings_js_1.default.findOne({ key });
-    return setting?.value ?? defaultValue;
+    const setting = await AdminSettings_js_1.default.findOne({ key }).lean();
+    if (setting?.value === undefined || setting?.value === null || setting.value === "") {
+        return defaultValue;
+    }
+    return String(setting.value).trim();
 }
 async function getDefaultPricePerMinute() {
     const val = await getSettingValue("default_price_per_minute", "10");
@@ -541,6 +558,11 @@ async function seedDefaultSettings() {
             value: "999",
             description: "One-time payment (INR) for users to activate the call button / staff application",
         },
+        {
+            key: "free_calling_minutes",
+            value: "5",
+            description: "Free voice call minutes granted to each new user on signup",
+        },
     ];
     for (const setting of defaults) {
         // Only insert missing keys — never overwrite admin-configured values on restart
@@ -553,5 +575,21 @@ async function getRetentionDays(key, fallback) {
     if (!Number.isFinite(days) || days < 1)
         return fallback;
     return Math.floor(days);
+}
+/** Free call minutes granted to new users (admin setting). */
+async function getFreeCallingMinutes(fallback = 5) {
+    const raw = await getSettingValue("free_calling_minutes", String(fallback));
+    const minutes = Number(raw);
+    if (!Number.isFinite(minutes) || minutes < 0)
+        return fallback;
+    return Math.floor(minutes);
+}
+async function getFreeCallingSeconds(fallbackMinutes = 5) {
+    const minutes = await getFreeCallingMinutes(fallbackMinutes);
+    return minutes * 60;
+}
+/** Safe public platform config for the user website. */
+async function getPublicConfig() {
+    return { freeCallingMinutes: await getFreeCallingMinutes() };
 }
 //# sourceMappingURL=admin.service.js.map

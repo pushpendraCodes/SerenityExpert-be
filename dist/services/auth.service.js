@@ -18,6 +18,7 @@ const otp_service_js_1 = require("./otp.service.js");
 const expert_service_js_1 = require("./expert.service.js");
 const token_js_1 = require("../utils/token.js");
 const constants_js_1 = require("../utils/constants.js");
+const admin_service_js_1 = require("./admin.service.js");
 const phone_js_1 = require("../utils/phone.js");
 const index_js_1 = require("../types/index.js");
 const AppError_js_1 = require("../utils/AppError.js");
@@ -85,6 +86,7 @@ async function loginWithOtp(phone, otp) {
     let isNewUser = false;
     if (!user) {
         isNewUser = true;
+        const freeSeconds = await (0, admin_service_js_1.getFreeCallingSeconds)(constants_js_1.FREE_SECONDS_ON_SIGNUP / 60);
         user = await User_js_1.default.create({
             phone: normalized,
             name: (0, constants_js_1.generateDummyUsername)(),
@@ -92,7 +94,7 @@ async function loginWithOtp(phone, otp) {
             isVerified: true,
             role: index_js_1.UserRole.USER,
             profileCompleted: false,
-            freeSecondsRemaining: constants_js_1.FREE_SECONDS_ON_SIGNUP,
+            freeSecondsRemaining: freeSeconds,
         });
     }
     else {
@@ -128,6 +130,7 @@ async function loginWithGoogle(idToken) {
     }
     if (!user) {
         isNewUser = true;
+        const freeSeconds = await (0, admin_service_js_1.getFreeCallingSeconds)(constants_js_1.FREE_SECONDS_ON_SIGNUP / 60);
         user = await User_js_1.default.create({
             phone: `google_${googleUser.sub.slice(0, 10)}`,
             name: googleUser.name || (0, constants_js_1.generateDummyUsername)(),
@@ -137,7 +140,7 @@ async function loginWithGoogle(idToken) {
             isVerified: true,
             role: index_js_1.UserRole.USER,
             profileCompleted: false,
-            freeSecondsRemaining: constants_js_1.FREE_SECONDS_ON_SIGNUP,
+            freeSecondsRemaining: freeSeconds,
         });
     }
     else {

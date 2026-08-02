@@ -46,7 +46,10 @@ export const listExperts = asyncHandler(async (req: Request, res: Response) => {
 
 export const createExpert = asyncHandler(async (req: Request, res: Response) => {
   const expert = await expertService.createExpertByAdmin(req.body);
-  return sendCreated(res, expert, "Expert created. Approve to enable login.");
+  const msg = expert.isApproved
+    ? "Staff created and approved — they can log in to the staff portal."
+    : "Staff created — approve them to enable staff portal login.";
+  return sendCreated(res, expert, msg);
 });
 
 export const approveExpert = asyncHandler(async (req: Request, res: Response) => {
@@ -150,6 +153,11 @@ export const aiModerateQuestion = asyncHandler(async (req: Request, res: Respons
 export const getSettings = asyncHandler(async (_req: Request, res: Response) => {
   const settings = await adminService.getSettings();
   return sendSuccess(res, settings);
+});
+
+export const getPublicConfig = asyncHandler(async (_req: Request, res: Response) => {
+  const config = await adminService.getPublicConfig();
+  return sendSuccess(res, config);
 });
 
 export const updateSettings = asyncHandler(async (req: Request, res: Response) => {

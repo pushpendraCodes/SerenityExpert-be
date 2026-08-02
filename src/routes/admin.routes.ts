@@ -27,6 +27,7 @@ const router = Router();
 // Public CMS content
 router.get("/public/faqs", adminController.listPublicFaqs);
 router.get("/public/banners", adminController.listPublicBanners);
+router.get("/public/config", adminController.getPublicConfig);
 
 router.use(authenticate, requireAdmin);
 

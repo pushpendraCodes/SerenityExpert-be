@@ -5,7 +5,6 @@ const zod_1 = require("zod");
 const constants_js_1 = require("../utils/constants.js");
 const index_js_1 = require("../types/index.js");
 exports.updateProfileSchema = zod_1.z.object({
-    name: zod_1.z.string().min(2).max(100).optional(),
     email: zod_1.z.string().email().optional(),
     gender: zod_1.z.nativeEnum(index_js_1.Gender).optional(),
     country: zod_1.z.string().min(2).max(100).optional(),
